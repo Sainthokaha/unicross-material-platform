@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Environment variables (CRITICAL: Keeps your Gmail & DB passwords safe!)
+.env
+.env.local
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Optional: Ignore the uploads folder so you don't push user files to GitHub
+uploads/
