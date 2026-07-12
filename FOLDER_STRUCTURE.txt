@@ -1,84 +1,85 @@
-========================================================================
-PROJECT: University Material Sharing Platform (UniShare)
-DESCRIPTION: A centralized, secure platform for sharing academic materials.
-TECH STACK: Vue 3, Pinia, Tailwind CSS, Node.js, Express, MySQL.
-========================================================================
-
-material-sharing-platform/
+unicross-material-platform/
 │
-├── backend/                                # 🟢 Node.js / Express Backend
+├── backend/                                # 🟢 Node.js / Express Backend (Application Tier)
+│   ├── node_modules/                       # ⚠️ IGNORED BY GIT (Auto-generated)
 │   ├── src/
 │   │   ├── config/
 │   │   │   ├── db.js                       # MySQL database connection pool
-│   │   │   └── index.js                    # App configurations (JWT secret, port)
+│   │   │   └── index.js                    # App configurations (JWT secret, port, CORS)
 │   │   │
 │   │   ├── controllers/                    # Business logic for routes
-│   │   │   ├── adminController.js          # Users, Audit Logs, Categories
-│   │   │   ├── authController.js           # Register, Login, Password Recovery
+│   │   │   ├── adminController.js          # Users, Audit Logs, Categories management
+│   │   │   ├── authController.js           # Register, Login, Password Recovery (Nodemailer)
 │   │   │   └── materialController.js       # Upload, Download, Search & Pagination
 │   │   │
 │   │   ├── middleware/                     # Security & Access Control
 │   │   │   ├── auth.js                     # verifyToken (JWT validation)
-│   │   │   └── roleGuard.js                # requireRole (Admin, Lecturer, Student)
+│   │   │   ── roleGuard.js                # requireRole (Admin, Lecturer, Student checks)
 │   │   │
 │   │   ├── routes/                         # API Endpoint definitions
 │   │   │   ├── adminRoutes.js              # /api/admin/* routes
-│   │   │   ├── authRoutes.js               # /api/auth/* routes (includes multer)
+│   │   │   ├── authRoutes.js               # /api/auth/* routes (includes multer config)
 │   │   │   └── materialRoutes.js           # /api/materials/* routes
 │   │   │
 │   │   ├── utils/
-│   │   │   └── auditLogger.js              # Helper for logging actions
+│   │   │   └── auditLogger.js              # Helper for logging user actions to DB
 │   │   │
-│   │   └── server.js                       #  Main entry point (Express app)
+│   │   └── server.js                       # 🚀 Main entry point (Express app, CORS, PORT)
 │   │
 │   ├── uploads/                            # 📂 Stored files (Materials & Avatars)
+│   │   ── .htaccess                       # Apache security file (blocks direct URL access)
 │   │
-│   ├── .env                                # 🔐 Environment variables (DB, JWT)
-│   ├── package.json                        # Backend dependencies
-│   └── reset-admin.js                      # 🛠️ Utility script to reset admin password
+│   ├── .env                                # 🔐 IGNORED BY GIT (DB credentials, Gmail App Pass)
+│   ├── .gitignore                          # Tells Git to ignore .env and node_modules
+│   ├── package.json                        # Backend dependencies (Express, bcrypt, nodemailer)
+│   └── reset-admin.js                      # ️ Utility script to reset admin password if locked out
 │
-├── frontend/                               #  Vue 3 / Vite Frontend
-│   ├── public/                             # Static assets (favicons)
+├── frontend/                               # 🔵 Vue 3 / Vite Frontend (Presentation Tier)
+│   ├── node_modules/                       # ⚠️ IGNORED BY GIT (Auto-generated)
+│   ├── public/                             # Static assets
+│   │   └── unicross-logo.jpg               # University logo used in UI and emails
 │   │
 │   ├── src/
 │   │   ├── api/
-│   │   │   └── axios.js                    # Axios instance (Base URL, Token interceptors)
+│   │   │   └── axios.js                    # Smart Axios instance (Base URL, Token interceptors)
 │   │   │
 │   │   ├── assets/                         # Global CSS, images
 │   │   │   └── main.css                    # Tailwind CSS directives & custom styles
 │   │   │
 │   │   ├── components/                     # 🧩 Reusable UI Components
-│   │   │   ├── MaterialCard.vue            # Displays a single material
-│   │   │   └── Sidebar.vue                 # Main navigation sidebar
+│   │   │   ├── MaterialCard.vue            # Displays a single material with download/approve buttons
+│   │   │   ── Sidebar.vue                 # Main responsive navigation drawer (Mobile & Desktop)
 │   │   │
 │   │   ├── router/
-│   │   │   └── index.js                    # 🗺️ Vue Router setup & Navigation Guards
+│   │   │   └── index.js                    # 🗺️ Vue Router setup & Navigation Guards (Role protection)
 │   │   │
 │   │   ├── stores/                         # 🗄️ Pinia State Management
-│   │   │   ├── auth.js                     # User state, Login/Logout logic
+│   │   │   ├── auth.js                     # User state, Login/Logout, Session persistence
 │   │   │   ├── materials.js                # Materials state, Fetch/Pagination logic
-│   │   │   └── users.js                    # Users state, Fetch/Create logic
+│   │   │   ── users.js                    # Users state, Fetch/Create logic for Admins
 │   │   │
 │   │   ├── views/                          # 📄 Main Page Components (Routed)
 │   │   │   ├── HomePage.vue                # 🌟 Beautiful Landing Page (Public)
 │   │   │   ├── LoginView.vue               # Login form with "Forgot Password" link
-│   │   │   ├── RegisterView.vue            # Registration form (Accepts standard Gmail)
-│   │   │   ├── ForgotPasswordView.vue      # Request password reset link
-│   │   │   ├── ResetPasswordView.vue       # Enter new password using token
+│   │   │   ├── RegisterView.vue            # Registration form (Smart Dept Alignment)
+│   │   │   ├── ForgotPasswordView.vue      # Request password reset link via Email
+│   │   │   ├── ResetPasswordView.vue       # Enter new password using secure token
 │   │   │   ├── StudentDashboard.vue        # Student view (Search, Filter, Pagination)
 │   │   │   ├── LecturerDashboard.vue       # Lecturer view (Upload, View own materials)
 │   │   │   ├── AdminPanel.vue              # Admin view (Materials, Users, Logs, Categories)
 │   │   │   ├── ProfileView.vue             # User profile (Change password, Upload avatar)
-│   │   │   └── NotFound.vue                # 404 Error page
+│   │   │   └── NotFound.vue                # Custom 404 Error page
 │   │   │
 │   │   ├── App.vue                         # Root Vue component (<router-view />)
 │   │   └── main.js                         # Frontend entry point (Mounts Vue, Pinia, Router)
 │   │
+│   ├── .env                                # 🔐 IGNORED BY GIT (VITE_API_URL for deployment)
+│   ├── .gitignore                          # Tells Git to ignore .env, node_modules, dist
 │   ├── index.html                          # HTML template
-│   ├── package.json                        # Frontend dependencies
+│   ├── package.json                        # Frontend dependencies (Vue, Tailwind, Pinia)
 │   ├── tailwind.config.js                  # Tailwind CSS configuration
 │   ├── postcss.config.js                   # PostCSS configuration for Tailwind
 │   └── vite.config.js                      # Vite build tool configuration
 │
-└── database/                               # ️ Database Setup
-    └── schema.sql                          # SQL script to create tables
+└── database/                               # 🗄️ Data Tier Setup
+    └── schema.sql                          # Complete SQL script to create all tables and seed data

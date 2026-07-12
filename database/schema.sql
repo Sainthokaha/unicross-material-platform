@@ -3,9 +3,7 @@
 -- Complete Database Schema
 -- ==========================================
 
--- 1. Create and select the database
-CREATE DATABASE IF NOT EXISTS material_sharing_db;
-USE material_sharing_db;
+   USE defaultdb;
 
 -- 2. Drop existing tables in the correct order (to avoid foreign key constraint errors)
 DROP TABLE IF EXISTS audit_logs;
