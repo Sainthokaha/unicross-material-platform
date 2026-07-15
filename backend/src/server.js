@@ -1,83 +1,66 @@
 const express = require('express');
 const cors = require('cors');
+const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config();
 
-// Import database connection (this triggers the "✅ MySQL connected successfully" log)
-const db = require('./config/db'); 
-
-// Import routes
-const authRoutes = require('./routes/authRoutes');
-const materialRoutes = require('./routes/materialRoutes');
-const adminRoutes = require('./routes/adminRoutes');
+// Load environment variables
+dotenv.config();
 
 const app = express();
 
-// ✅ DEPLOYMENT READY CORS
-// Allows your local Vue app AND your future Vercel app to talk to this backend
+// 1. BULLETPROOF CORS CONFIGURATION
 const allowedOrigins = [
-  'http://localhost:5173', 
-  'http://localhost:3000',
-  process.env.FRONTEND_URL // We will add your Vercel URL here in the .env file later
+  process.env.FRONTEND_URL || 'http://localhost:5173',
+  'http://localhost:5173',
+  'https://unicross-material-platform.vercel.app' // Replace with your actual Vercel URL if different
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, Postman, or curl)
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    
-    // If FRONTEND_URL is not set (local dev), allow all localhost
-    if (!process.env.FRONTEND_URL) {
-      return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      console.log('CORS blocked origin:', origin);
+      return callback(new Error('CORS not allowed'), false);
     }
-    
-    // Check if origin is in allowed list or contains 'vercel.app'
-    if (allowedOrigins.indexOf(origin) !== -1 || origin.includes('vercel.app')) {
-      return callback(null, true);
-    }
-    
-    // Temporarily allow all to prevent CORS errors during initial deploy testing
-    return callback(null, true); 
+    return callback(null, true);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 2. MIDDLEWARE
+app.use(express.json()); // Parse JSON bodies
+app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 
-// ✅ Ensure uploads directory exists and log it
-const uploadsDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadsDir)){
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
-console.log('📁 Uploads directory:', uploadsDir);
-
-try {
-  const files = fs.readdirSync(uploadsDir);
-  console.log('📂 Files in uploads folder:', files.join(', '));
-} catch (err) {
-  console.log('⚠️ Could not read uploads folder');
+// 3. ENSURE UPLOADS DIRECTORY EXISTS (Fixes cloud deployment crashes)
+const uploadDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('✅ Created uploads directory');
 }
 
 // Serve static files from the uploads directory
-app.use('/uploads', express.static(uploadsDir));
+app.use('/uploads', express.static(uploadDir));
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/materials', materialRoutes);
-app.use('/api/admin', adminRoutes);
+// 4. ROUTES
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/materials', require('./routes/materialRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 
-// Health Check Route (Good for testing if backend is alive)
-app.get('/', (req, res) => {
-  res.send('🚀 UNICROSS Material Sharing API is live and running!');
+// 5. GLOBAL ERROR HANDLER
+app.use((err, req, res, next) => {
+  console.error('❌ GLOBAL ERROR:', err.message);
+  res.status(err.status || 500).json({ 
+    message: err.message || 'Internal Server Error',
+    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+  });
 });
 
-// ✅ DEPLOYMENT READY PORT
-// Cloud providers (like Render) automatically assign a PORT via environment variables.
-// If running locally, it defaults to 5000.
+// 6. START SERVER
 const PORT = process.env.PORT || 5000;
-
 app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  console.log(`🚀 UNICROSS Material Sharing API is live and running on port ${PORT}`);
 });
