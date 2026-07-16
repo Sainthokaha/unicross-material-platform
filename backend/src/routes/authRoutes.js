@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 const { verifyToken } = require('../middleware/auth');
 const { 
@@ -13,10 +14,16 @@ const {
   updateProfileImage 
 } = require('../controllers/authController');
 
+// Ensure uploads directory exists (Crucial for Render deployment)
+const uploadDir = path.join(__dirname, '../../uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
 // Multer setup for profile image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, uploadDir); // ✅ Uses absolute path
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -34,7 +41,7 @@ const upload = multer({
     if (extname && mimetype) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed!'));
+      cb(new Error('Only image files (jpeg, jpg, png, gif) are allowed!'));
     }
   },
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
@@ -47,7 +54,7 @@ router.post('/forgot-password', forgotPassword);
 router.post('/reset-password', resetPassword);
 router.post('/change-password', verifyToken, changePassword);
 
-// ✅ Profile Image Upload Route
+// Profile Image Upload Route
 router.post('/profile-image', verifyToken, upload.single('profile_image'), updateProfileImage);
 
 module.exports = router;
