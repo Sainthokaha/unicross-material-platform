@@ -20,6 +20,7 @@
     "multer": "^2.2.0",
     "mysql2": "^3.22.5",
     "nodemailer": "^9.0.3",
+    "resend": "^6.17.2",
     "uuid": "^14.0.1"
   },
   "devDependencies": {
