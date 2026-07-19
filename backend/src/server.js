@@ -43,7 +43,7 @@ if (!fs.existsSync(uploadDir)) {
 }
 
 // Serve static files from the uploads directory
-app.use('/uploads', express.static(uploadDir));
+app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // 4. ROUTES
 // Welcome Route (So the backend URL looks professional)
@@ -55,7 +55,6 @@ app.get('/', (req, res) => {
   });
 });
 
-// 4. ROUTES
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/materials', require('./routes/materialRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));

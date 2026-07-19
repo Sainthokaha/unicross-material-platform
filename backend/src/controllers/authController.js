@@ -215,12 +215,16 @@ exports.updateProfileImage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    // Normalize path for URL (converts Windows \ to /)
-    const profileImage = req.file.path.replace(/\\/g, '/');
+    // ✅ Return ONLY the filename, not the full path
+    const profileImage = `/uploads/${req.file.filename}`;
     
     await db.query('UPDATE users SET profile_image = ? WHERE id = ?', [profileImage, userId]);
 
-    res.status(200).json({ success: true, message: 'Profile image updated successfully', profileImage });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Profile image updated successfully', 
+      profileImage 
+    });
   } catch (error) {
     console.error('❌ Update Profile Image Error:', error);
     res.status(500).json({ success: false, message: 'Server error during profile image update' });
