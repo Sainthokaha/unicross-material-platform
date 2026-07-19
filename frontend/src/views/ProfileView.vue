@@ -33,9 +33,7 @@
           >
             <img
               v-if="authStore.user?.profile_image"
-              :src="`http://localhost:5000/uploads/${
-                authStore.user.profile_image
-              }?t=${Date.now()}`"
+              :src="getProfileImageUrl(authStore.user.profile_image)"
               class="w-32 h-32 rounded-full mx-auto object-cover border-4 border-primary-100 shadow-md"
               alt="Profile"
             />
@@ -47,7 +45,7 @@
             </div>
 
             <h2 class="mt-4 text-xl font-bold text-gray-900">
-              {{ authStore.user?.name }}
+              {{ authStore.user?.full_name || authStore.user?.name || "User" }}
             </h2>
             <p class="text-sm text-gray-500 capitalize">{{ authStore.user?.role }}</p>
             <p class="text-xs text-gray-400 mt-1">{{ authStore.user?.email }}</p>
@@ -229,7 +227,7 @@ const dashboardPath = computed(() => {
 });
 
 const userInitials = computed(() => {
-  const name = authStore.user?.name || "User";
+  const name = authStore.user?.full_name || authStore.user?.name || "User";
   return name
     .split(" ")
     .map((n) => n[0])
@@ -237,6 +235,16 @@ const userInitials = computed(() => {
     .toUpperCase()
     .slice(0, 2);
 });
+
+// ✅ DYNAMIC IMAGE URL HELPER
+const getProfileImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http")) return imagePath; // Already a full URL
+
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const baseUrl = apiUrl.replace("/api", ""); // Removes '/api' to get base server URL
+  return `${baseUrl}${imagePath}?t=${Date.now()}`; // Adds cache-busting timestamp
+};
 
 function handleFileChange(e) {
   const file = e.target.files[0];
@@ -255,8 +263,8 @@ async function handleImageUpload(file) {
       headers: { "Content-Type": "multipart/form-data" },
     });
 
-    // ✅ Update auth store with new profile image (NO RELOAD!)
-    authStore.user.profile_image = res.data.filename;
+    // ✅ Update auth store with new profile image path
+    authStore.user.profile_image = res.data.profileImage;
 
     // ✅ Force reactivity by creating a new object
     authStore.user = { ...authStore.user };

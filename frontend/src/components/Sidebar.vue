@@ -1,5 +1,6 @@
 <template>
   <div>
+    <!-- Mobile Top Nav -->
     <nav
       class="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm z-40 flex items-center justify-between px-4"
     >
@@ -19,7 +20,7 @@
       <div class="flex items-center gap-2">
         <img
           v-if="authStore.user?.profile_image"
-          :src="`http://localhost:5000/uploads/${authStore.user.profile_image}`"
+          :src="getProfileImageUrl(authStore.user.profile_image)"
           class="w-9 h-9 rounded-full object-cover border-2 border-primary-500 shadow-md"
           alt="Profile"
         />
@@ -32,6 +33,7 @@
       </div>
     </nav>
 
+    <!-- Desktop/Mobile Sidebar -->
     <aside
       :class="[
         'fixed inset-y-0 left-0 w-72 bg-gray-900 text-white shadow-2xl z-50 transform transition-transform duration-300 ease-in-out',
@@ -80,7 +82,7 @@
           <div class="flex items-center gap-3 px-2 py-2 mb-2">
             <img
               v-if="authStore.user?.profile_image"
-              :src="`http://localhost:5000/uploads/${authStore.user.profile_image}`"
+              :src="getProfileImageUrl(authStore.user.profile_image)"
               class="w-10 h-10 rounded-full object-cover border-2 border-primary-500 shadow-md"
               alt="Profile"
             />
@@ -92,7 +94,7 @@
             </div>
             <div class="flex-1 min-w-0">
               <p class="text-sm font-semibold text-white truncate">
-                {{ authStore.user?.name }}
+                {{ authStore.user?.full_name || authStore.user?.name || "User" }}
               </p>
               <p class="text-xs text-gray-400 capitalize truncate">
                 {{ authStore.user?.role }}
@@ -144,7 +146,7 @@ const authStore = useAuthStore();
 const isMobileMenuOpen = ref(false);
 
 const userInitials = computed(() => {
-  const name = authStore.user?.name || "User";
+  const name = authStore.user?.full_name || authStore.user?.name || "User";
   return name
     .split(" ")
     .map((n) => n[0])
@@ -152,6 +154,16 @@ const userInitials = computed(() => {
     .toUpperCase()
     .slice(0, 2);
 });
+
+// ✅ DYNAMIC IMAGE URL HELPER
+const getProfileImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http")) return imagePath; // Already a full URL
+
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  const baseUrl = apiUrl.replace("/api", ""); // Removes '/api' to get base server URL
+  return `${baseUrl}${imagePath}`;
+};
 
 function handleLogout() {
   isMobileMenuOpen.value = false;
