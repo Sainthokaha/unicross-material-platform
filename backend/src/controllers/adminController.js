@@ -304,3 +304,35 @@ exports.deleteMaterial = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+// ==================== USER STATUS TOGGLE ====================
+exports.toggleUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { is_active } = req.body;
+
+    // Validate input (ensure it's a boolean or 1/0)
+    if (is_active === undefined) {
+      return res.status(400).json({ success: false, message: 'Status value is required' });
+    }
+
+    const statusValue = is_active ? 1 : 0;
+
+    const [result] = await db.query(
+      'UPDATE users SET is_active = ? WHERE id = ?',
+      [statusValue, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: `User ${statusValue ? 'activated' : 'deactivated'} successfully` 
+    });
+  } catch (error) {
+    console.error('❌ Error toggling user status:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

@@ -17,7 +17,6 @@ export const useUsersStore = defineStore('users', () => {
     error.value = null
     try {
       const response = await api.get('/admin/users')
-      // Backend returns { success: true, data: [...] }
       users.value = response.data.data || []
     } catch (err) {
       error.value = err.response?.data?.message || 'Failed to fetch users'
@@ -42,13 +41,15 @@ export const useUsersStore = defineStore('users', () => {
     }
   }
 
-  async function toggleUserStatus(id, isActive) {
+  // ✅ UPDATED: Now accepts 'newStatus' and sends it to the backend
+  async function toggleUserStatus(id, newStatus) {
     loading.value = true
     try {
-      await api.patch(`/admin/users/${id}/status`, { is_active: isActive })
-      await fetchUsers()
+      await api.patch(`/admin/users/${id}/status`, { is_active: newStatus })
+      await fetchUsers() // Refresh the list
     } catch (err) {
       error.value = err.response?.data?.message || 'Failed to update status'
+      console.error('❌ Toggle User Status Error:', err)
       throw err
     } finally {
       loading.value = false
