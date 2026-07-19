@@ -975,21 +975,36 @@ async function handleCreateUser() {
 
 async function updateUserDept(userId, deptId) {
   try {
+    // 1. Update the backend
     await api.patch(`/admin/users/${userId}/department`, {
       department_id: deptId || null,
     });
 
-    // ✅ Manually update the local state to avoid cache issues
+    // 2. Manually update the local state
     const user = usersStore.users.find((u) => u.id === userId);
     if (user) {
       user.department_id = deptId || null;
+
       // Find the department name
       const dept = usersStore.departments.find((d) => d.id == deptId);
       user.department_name = dept ? dept.name : "Unassigned";
+
+      // Update matriculation number format (for students)
+      if (user.role === "student" && dept) {
+        // Format: DEPTCODE/STUDENTID
+        user.matric_number = `${dept.code}/${user.matric_number.split("/")[1] || "001"}`;
+      }
     }
 
-    // Force reactivity
+    // 3. Force reactivity
     usersStore.users = [...usersStore.users];
+
+    // 4. Update the current user's profile if they're viewing it
+    if (authStore.user?.id === userId) {
+      authStore.user.department_id = deptId || null;
+      authStore.user.department_name = dept ? dept.name : "Unassigned";
+      authStore.user.matric_number = user.matric_number;
+    }
   } catch (err) {
     console.error("Update dept error:", err);
     alert(

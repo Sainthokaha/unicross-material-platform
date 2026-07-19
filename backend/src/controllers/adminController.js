@@ -340,9 +340,27 @@ exports.updateUserDepartment = async (req, res) => {
     const { id } = req.params;
     const { department_id } = req.body;
 
+    // First, get the current user data
+    const [user] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
+    if (user.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // If it's a student, update the matric number format
+    let matricNumber = user[0].matric_number;
+    if (user[0].role === 'student' && department_id) {
+      // Get the department code
+      const [dept] = await db.query('SELECT code FROM departments WHERE id = ?', [department_id]);
+      if (dept.length > 0) {
+        // Format: DEPTCODE/STUDENTID
+        const studentId = matricNumber.split('/')[1] || '001';
+        matricNumber = `${dept[0].code}/${studentId}`;
+      }
+    }
+
     const [result] = await db.query(
-      'UPDATE users SET department_id = ? WHERE id = ?',
-      [department_id || null, id]
+      'UPDATE users SET department_id = ?, matric_number = ? WHERE id = ?',
+      [department_id || null, matricNumber, id]
     );
 
     if (result.affectedRows === 0) {
