@@ -46,6 +46,16 @@ if (!fs.existsSync(uploadDir)) {
 app.use('/uploads', express.static(uploadDir));
 
 // 4. ROUTES
+// Welcome Route (So the backend URL looks professional)
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'success',
+    message: '🚀 UNICROSS Material Sharing API is live and running!',
+    version: '1.0.0'
+  });
+});
+
+// 4. ROUTES
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/materials', require('./routes/materialRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
