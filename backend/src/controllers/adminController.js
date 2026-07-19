@@ -21,7 +21,6 @@ exports.addDepartment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name and code are required' });
     }
     
-    // Check if department code already exists
     const [existing] = await db.query('SELECT id FROM departments WHERE code = ?', [code]);
     if (existing.length > 0) {
       return res.status(400).json({ success: false, message: 'Department code already exists' });
@@ -71,7 +70,6 @@ exports.addCourse = async (req, res) => {
       });
     }
     
-    // Check if course code already exists
     const [existing] = await db.query('SELECT id FROM courses WHERE code = ?', [code]);
     if (existing.length > 0) {
       return res.status(400).json({ success: false, message: 'Course code already exists' });
@@ -132,7 +130,6 @@ exports.addUser = async (req, res) => {
       department_id 
     } = req.body;
     
-    // Validate required fields
     if (!full_name || !email || !password || !role) {
       return res.status(400).json({ 
         success: false, 
@@ -140,7 +137,6 @@ exports.addUser = async (req, res) => {
       });
     }
     
-    // Validate role
     const validRoles = ['student', 'lecturer', 'admin'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ 
@@ -149,7 +145,6 @@ exports.addUser = async (req, res) => {
       });
     }
     
-    // Check if email already exists
     const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existing.length > 0) {
       return res.status(400).json({ 
@@ -158,10 +153,8 @@ exports.addUser = async (req, res) => {
       });
     }
     
-    // Hash password
     const password_hash = await bcrypt.hash(password, 12);
     
-    // Insert user
     const [result] = await db.query(
       `INSERT INTO users (
         full_name, 
@@ -255,7 +248,7 @@ exports.approveMaterial = async (req, res) => {
     
     res.status(200).json({ success: true, message: 'Material approved successfully' });
   } catch (error) {
-    console.error(' Error approving material:', error);
+    console.error('❌ Error approving material:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -300,22 +293,26 @@ exports.deleteMaterial = async (req, res) => {
     
     res.status(200).json({ success: true, message: 'Material deleted successfully' });
   } catch (error) {
-    console.error(' Error deleting material:', error);
+    console.error('❌ Error deleting material:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// ==================== USER STATUS TOGGLE ====================
+// ==================== USER STATUS TOGGLE (BULLETPROOF) ====================
 exports.toggleUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { is_active } = req.body;
 
-    // Validate input (ensure it's a boolean or 1/0)
-    if (is_active === undefined) {
-      return res.status(400).json({ success: false, message: 'Status value is required' });
+    // ✅ Validate input (handle undefined, null, or missing values)
+    if (is_active === undefined || is_active === null) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Status value (is_active) is required' 
+      });
     }
 
+    // ✅ Force it to be exactly 1 or 0 for MySQL
     const statusValue = is_active ? 1 : 0;
 
     const [result] = await db.query(
@@ -329,7 +326,7 @@ exports.toggleUserStatus = async (req, res) => {
 
     res.status(200).json({ 
       success: true, 
-      message: `User ${statusValue ? 'activated' : 'deactivated'} successfully` 
+      message: `User ${statusValue === 1 ? 'activated' : 'deactivated'} successfully` 
     });
   } catch (error) {
     console.error('❌ Error toggling user status:', error);

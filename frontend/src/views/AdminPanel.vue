@@ -140,7 +140,11 @@
                 class="form-input"
               >
                 <option value="" disabled>Choose Department</option>
-                <option v-for="dept in usersStore.departments" :key="dept.id" :value="dept.id">
+                <option
+                  v-for="dept in usersStore.departments"
+                  :key="dept.id"
+                  :value="dept.id"
+                >
                   {{ dept.name }}
                 </option>
               </select>
@@ -183,7 +187,7 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">File</label>
               <input type="file" @change="handleFileChange" required class="form-input" />
               <p class="text-xs text-gray-500 mt-1">
-                ️ Max file size: 50MB. Only the latest version will be kept.
+                Max file size: 50MB. Only the latest version will be kept.
               </p>
             </div>
             <p v-if="uploadError" class="text-red-600 text-sm">{{ uploadError }}</p>
@@ -478,18 +482,19 @@
               </select>
             </div>
 
+            <!-- ✅ UPDATED: Strict comparison for is_active === 1 -->
             <div class="mt-3 xl:mt-0 xl:col-span-2">
               <span class="text-gray-500 text-xs font-bold uppercase xl:hidden"
                 >Status</span
               >
               <span
                 :class="
-                  user.is_active
+                  user.is_active === 1
                     ? 'status-badge status-approved'
                     : 'status-badge status-rejected'
                 "
               >
-                {{ user.is_active ? "Active" : "Inactive" }}
+                {{ user.is_active === 1 ? "Active" : "Inactive" }}
               </span>
             </div>
 
@@ -497,14 +502,17 @@
               <span class="text-gray-500 text-xs font-bold uppercase xl:hidden block mb-2"
                 >Actions</span
               >
+              <!-- ✅ CRITICAL FIX: Explicitly sends 1 or 0 to the store -->
               <button
-                @click="usersStore.toggleUserStatus(user.id)"
+                @click="
+                  usersStore.toggleUserStatus(user.id, user.is_active === 1 ? 0 : 1)
+                "
                 :class="[
                   'btn text-sm w-full',
-                  user.is_active ? 'btn-danger' : 'btn-success',
+                  user.is_active === 1 ? 'btn-danger' : 'btn-success',
                 ]"
               >
-                {{ user.is_active ? "Deactivate" : "Activate" }}
+                {{ user.is_active === 1 ? "Deactivate" : "Activate" }}
               </button>
             </div>
           </div>
@@ -664,10 +672,7 @@
                     Delete
                   </button>
                 </div>
-                <p
-                  v-if="usersStore.loading"
-                  class="text-gray-500 text-sm italic"
-                >
+                <p v-if="usersStore.loading" class="text-gray-500 text-sm italic">
                   Loading...
                 </p>
                 <p
@@ -753,10 +758,7 @@
                     Delete
                   </button>
                 </div>
-                <p
-                  v-if="usersStore.loading"
-                  class="text-gray-500 text-sm italic"
-                >
+                <p v-if="usersStore.loading" class="text-gray-500 text-sm italic">
                   Loading...
                 </p>
                 <p
