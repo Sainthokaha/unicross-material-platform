@@ -36,6 +36,7 @@
               :src="getProfileImageUrl(authStore.user.profile_image)"
               class="w-32 h-32 rounded-full mx-auto object-cover border-4 border-primary-100 shadow-md"
               alt="Profile"
+              @error="handleImageError"
             />
             <div
               v-else
@@ -55,7 +56,8 @@
               <input
                 type="file"
                 @change="handleFileChange"
-                accept="image/*"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                capture="environment"
                 class="hidden"
                 ref="fileInput"
               />
@@ -66,6 +68,7 @@
               >
                 Change Profile Picture
               </button>
+              <p class="text-xs text-gray-500 mt-2">Supported: JPG, PNG, GIF, WebP</p>
               <p
                 v-if="imageMessage"
                 :class="['text-xs mt-2', imageError ? 'text-red-500' : 'text-green-500']"
@@ -239,16 +242,44 @@ const userInitials = computed(() => {
 // ✅ DYNAMIC IMAGE URL HELPER
 const getProfileImageUrl = (imagePath) => {
   if (!imagePath) return null;
-  if (imagePath.startsWith("http")) return imagePath; // Already a full URL
+  if (imagePath.startsWith("http")) return imagePath;
 
   const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-  const baseUrl = apiUrl.replace("/api", ""); // Removes '/api' to get base server URL
-  return `${baseUrl}${imagePath}?t=${Date.now()}`; // Adds cache-busting timestamp
+  const baseUrl = apiUrl.replace("/api", "");
+  return `${baseUrl}${imagePath}?t=${Date.now()}`;
 };
+
+function handleImageError() {
+  // Fallback to initials if image fails to load
+  console.warn("Profile image failed to load");
+}
 
 function handleFileChange(e) {
   const file = e.target.files[0];
-  if (file) handleImageUpload(file);
+  if (file) {
+    // ✅ Mobile-friendly validation
+    const validTypes = [
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+    ];
+    if (!validTypes.includes(file.type)) {
+      imageError.value = true;
+      imageMessage.value = "Please select a valid image file (JPG, PNG, GIF, or WebP)";
+      return;
+    }
+
+    // ✅ Mobile file size check (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      imageError.value = true;
+      imageMessage.value = "Image must be less than 5MB";
+      return;
+    }
+
+    handleImageUpload(file);
+  }
 }
 
 async function handleImageUpload(file) {
@@ -260,7 +291,9 @@ async function handleImageUpload(file) {
 
   try {
     const res = await api.post("/auth/profile-image", formData, {
-      headers: { "Content-Type": "multipart/form-data" },
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     });
 
     // ✅ Update auth store with new profile image path
@@ -278,6 +311,7 @@ async function handleImageUpload(file) {
   } catch (err) {
     imageError.value = true;
     imageMessage.value = err.response?.data?.message || "Failed to upload image";
+    console.error("Upload error:", err);
   }
 }
 
