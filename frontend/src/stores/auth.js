@@ -28,29 +28,21 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }, { deep: true })
 
-  async function login(credentials) {
+    async function login(credentials) {
     loading.value = true
-    error.value = null
-
     try {
       const response = await api.post('/auth/login', credentials)
-      const { token: authToken, user: userData } = response.data
-
-      token.value = authToken
-      user.value = userData
-
-      localStorage.setItem('token', authToken)
-
-      api.defaults.headers.common['Authorization'] = `Bearer ${authToken}`
-
-      if (userData.role === 'student') router.push('/student-dashboard')
-      else if (userData.role === 'lecturer') router.push('/lecturer-dashboard')
-      else if (userData.role === 'admin') router.push('/admin')
-      else router.push('/')
-
+      const { token, user } = response.data
+      
+      // Save token
+      localStorage.setItem('token', token)
+      
+      // Save user data EXACTLY as it comes from the DB
+      user.value = user 
+      
       return response.data
     } catch (err) {
-      error.value = err.response?.data?.message || 'Login failed'
+      console.error('Login failed:', err)
       throw err
     } finally {
       loading.value = false

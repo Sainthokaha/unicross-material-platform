@@ -338,29 +338,55 @@ exports.toggleUserStatus = async (req, res) => {
 exports.updateUserDepartment = async (req, res) => {
   try {
     const { id } = req.params;
-    const { department_id } = req.body;
+    let { department_id } = req.body;
 
-    // First, get the current user data
+    // 1. Cast to Integer (Crucial fix for the "reverting" issue)
+    if (department_id === "" || department_id === null || department_id === undefined) {
+      department_id = null;
+    } else {
+      department_id = parseInt(department_id, 10);
+    }
+
+    // 2. Get current user data
     const [user] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
     if (user.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // If it's a student, update the matric number format
+    // 3. Fix Matric Number Format (Year/DeptCode/Number e.g., 24/CSC/030)
     let matricNumber = user[0].matric_number;
+    
     if (user[0].role === 'student' && department_id) {
       // Get the department code
       const [dept] = await db.query('SELECT code FROM departments WHERE id = ?', [department_id]);
       if (dept.length > 0) {
-        // Format: DEPTCODE/STUDENTID
-        const studentId = matricNumber.split('/')[1] || '001';
-        matricNumber = `${dept[0].code}/${studentId}`;
+        const deptCode = dept[0].code;
+        
+        // Parse existing matric number to preserve Year and Number
+        let year = '24'; // Default year
+        let number = '001'; // Default number
+        
+        if (matricNumber && matricNumber.includes('/')) {
+          const parts = matricNumber.split('/');
+          if (parts[0] && parts[0].length <= 4) year = parts[0]; // e.g., '22'
+          if (parts[2]) number = parts[2]; // e.g., '030'
+        } else if (matricNumber && !matricNumber.includes('/')) {
+          // If it was just a random string like "BUS", use it as the number
+          number = matricNumber.substring(0, 3).padStart(3, '0'); 
+        }
+
+        // Construct the correct format: 22/CSC/030
+        matricNumber = `${year}/${deptCode}/${number}`;
       }
+    } else if (user[0].role !== 'student') {
+      // Clear matric number if they are not a student
+      matricNumber = null;
     }
 
+    // 4. Update the database
     const [result] = await db.query(
       'UPDATE users SET department_id = ?, matric_number = ? WHERE id = ?',
-      [department_id || null, matricNumber, id]
+      [department_id, matricNumber, id]
     );
 
     if (result.affectedRows === 0) {
@@ -369,7 +395,8 @@ exports.updateUserDepartment = async (req, res) => {
 
     res.status(200).json({ 
       success: true, 
-      message: 'User department updated successfully' 
+      message: 'User department and matric number updated successfully',
+      newMatric: matricNumber
     });
   } catch (error) {
     console.error('❌ Error updating user department:', error);

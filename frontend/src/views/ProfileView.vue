@@ -56,7 +56,7 @@
               <input
                 type="file"
                 @change="handleFileChange"
-                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                accept="image/jpeg,image/png,image/jpg,image/webp"
                 class="hidden"
                 ref="fileInput"
               />
@@ -67,7 +67,9 @@
               >
                 Change Profile Picture
               </button>
-              <p class="text-xs text-gray-500 mt-2">Supported: JPG, PNG, GIF, WebP</p>
+              <p class="text-xs text-gray-500 mt-2">
+                Supported: JPG, PNG, GIF, WebP (Max 5MB)
+              </p>
               <p
                 v-if="imageMessage"
                 :class="['text-xs mt-2', imageError ? 'text-red-500' : 'text-green-500']"
@@ -203,7 +205,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue"; // ✅ Added onMounted
 import { useAuthStore } from "../stores/auth";
 import Sidebar from "../components/Sidebar.vue";
 import api from "../api/axios";
@@ -249,14 +251,12 @@ const getProfileImageUrl = (imagePath) => {
 };
 
 function handleImageError() {
-  // Fallback to initials if image fails to load
   console.warn("Profile image failed to load");
 }
 
 function handleFileChange(e) {
   const file = e.target.files[0];
   if (file) {
-    // ✅ Mobile-friendly validation
     const validTypes = [
       "image/jpeg",
       "image/jpg",
@@ -270,7 +270,6 @@ function handleFileChange(e) {
       return;
     }
 
-    // ✅ Mobile file size check (5MB max)
     if (file.size > 5 * 1024 * 1024) {
       imageError.value = true;
       imageMessage.value = "Image must be less than 5MB";
@@ -295,15 +294,11 @@ async function handleImageUpload(file) {
       },
     });
 
-    // ✅ Update auth store with new profile image path
     authStore.user.profile_image = res.data.profileImage;
-
-    // ✅ Force reactivity by creating a new object
     authStore.user = { ...authStore.user };
 
     imageMessage.value = "Profile picture updated successfully!";
 
-    // Clear message after 3 seconds
     setTimeout(() => {
       imageMessage.value = "";
     }, 3000);
@@ -330,4 +325,24 @@ async function handleChangePassword() {
     changingPassword.value = false;
   }
 }
+
+// ✅ NEW: Fetch fresh data from the database when the page loads
+async function fetchFreshProfile() {
+  try {
+    const response = await api.get("/auth/me");
+    if (response.data && response.data.data) {
+      // Overwrite the local store data with the fresh database data
+      authStore.user = response.data.data;
+      // Force Vue reactivity
+      authStore.user = { ...authStore.user };
+    }
+  } catch (err) {
+    console.error("Failed to fetch fresh profile data:", err);
+  }
+}
+
+// ✅ Run the fetch function automatically when the component mounts
+onMounted(() => {
+  fetchFreshProfile();
+});
 </script>
