@@ -23,7 +23,10 @@
           Materials
         </button>
         <button
-          @click="activeTab = 'users'"
+          @click="
+            activeTab = 'users';
+            loadUsersData();
+          "
           :class="[
             'w-full text-left px-4 py-3 rounded-lg transition flex items-center gap-3',
             activeTab === 'users'
@@ -44,7 +47,7 @@
         <button
           @click="
             activeTab = 'logs';
-            fetchLogs();
+            loadAuditLogs();
           "
           :class="[
             'w-full text-left px-4 py-3 rounded-lg transition flex items-center gap-3',
@@ -66,7 +69,7 @@
         <button
           @click="
             activeTab = 'categories';
-            fetchCategories();
+            loadCategoriesData();
           "
           :class="[
             'w-full text-left px-4 py-3 rounded-lg transition flex items-center gap-3',
@@ -137,7 +140,7 @@
                 class="form-input"
               >
                 <option value="" disabled>Choose Department</option>
-                <option v-for="dept in allDepartments" :key="dept.id" :value="dept.id">
+                <option v-for="dept in usersStore.departments" :key="dept.id" :value="dept.id">
                   {{ dept.name }}
                 </option>
               </select>
@@ -279,7 +282,13 @@
             </div>
           </div>
           <p
-            v-if="materialsStore.materials.length === 0"
+            v-if="materialsStore.loading"
+            class="text-center text-gray-500 py-8 bg-white rounded-lg md:col-span-2 xl:col-span-1"
+          >
+            Loading materials...
+          </p>
+          <p
+            v-else-if="materialsStore.materials.length === 0"
             class="text-center text-gray-500 py-8 bg-white rounded-lg md:col-span-2 xl:col-span-1"
           >
             No materials uploaded yet.
@@ -341,7 +350,6 @@
               </select>
             </div>
 
-            <!-- ✅ Dynamic ID Fields -->
             <div v-if="userForm.role === 'student'">
               <label class="block text-sm font-medium text-gray-700 mb-1"
                 >Matric Number</label
@@ -364,7 +372,6 @@
               />
             </div>
 
-            <!-- ✅ Department Assignment -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1"
                 >Department</label
@@ -372,7 +379,7 @@
               <select v-model="userForm.department_id" class="form-input">
                 <option value="">Unassigned (System Admin)</option>
                 <option
-                  v-for="dept in categories.departments"
+                  v-for="dept in usersStore.departments"
                   :key="dept.id"
                   :value="dept.id"
                 >
@@ -462,7 +469,7 @@
               >
                 <option value="">Unassigned</option>
                 <option
-                  v-for="dept in categories.departments"
+                  v-for="dept in usersStore.departments"
                   :key="dept.id"
                   :value="dept.id"
                 >
@@ -502,7 +509,13 @@
             </div>
           </div>
           <p
-            v-if="usersStore.users.length === 0"
+            v-if="usersStore.loading"
+            class="text-center text-gray-500 py-8 bg-white rounded-lg md:col-span-2 xl:col-span-1"
+          >
+            Loading users...
+          </p>
+          <p
+            v-else-if="usersStore.users.length === 0"
             class="text-center text-gray-500 py-8 bg-white rounded-lg md:col-span-2 xl:col-span-1"
           >
             No users found.
@@ -572,7 +585,13 @@
             </div>
           </div>
           <p
-            v-if="auditLogs.length === 0"
+            v-if="loadingLogs"
+            class="text-center text-gray-500 py-8 bg-white rounded-lg md:col-span-2 xl:col-span-1"
+          >
+            Loading logs...
+          </p>
+          <p
+            v-else-if="auditLogs.length === 0"
             class="text-center text-gray-500 py-8 bg-white rounded-lg md:col-span-2 xl:col-span-1"
           >
             No audit logs found yet.
@@ -603,12 +622,24 @@
                   placeholder="e.g., Computer Science"
                 />
               </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Department Code</label
+                >
+                <input
+                  v-model="deptForm.code"
+                  type="text"
+                  required
+                  class="form-input"
+                  placeholder="e.g., CSC"
+                />
+              </div>
               <button
                 type="submit"
-                :disabled="loadingDept"
+                :disabled="usersStore.loading"
                 class="btn btn-primary w-full disabled:opacity-50"
               >
-                {{ loadingDept ? "Adding..." : "Add Department" }}
+                {{ usersStore.loading ? "Adding..." : "Add Department" }}
               </button>
             </form>
 
@@ -618,11 +649,14 @@
               </h4>
               <div class="space-y-2 max-h-64 overflow-y-auto pr-2">
                 <div
-                  v-for="dept in categories.departments"
+                  v-for="dept in usersStore.departments"
                   :key="dept.id"
                   class="flex justify-between items-center bg-gray-50 p-3 rounded-lg text-sm border border-gray-100"
                 >
-                  <span class="font-medium text-gray-700">{{ dept.name }}</span>
+                  <div>
+                    <span class="font-bold text-primary-600 mr-2">{{ dept.code }}</span>
+                    <span class="text-gray-700">{{ dept.name }}</span>
+                  </div>
                   <button
                     @click="handleDeleteDepartment(dept.id)"
                     class="text-red-500 hover:text-red-700 text-xs font-bold px-2 py-1 bg-red-50 rounded hover:bg-red-100 transition"
@@ -631,7 +665,13 @@
                   </button>
                 </div>
                 <p
-                  v-if="categories.departments.length === 0"
+                  v-if="usersStore.loading"
+                  class="text-gray-500 text-sm italic"
+                >
+                  Loading...
+                </p>
+                <p
+                  v-else-if="usersStore.departments.length === 0"
                   class="text-gray-500 text-sm italic"
                 >
                   No departments found.
@@ -675,7 +715,7 @@
                 <select v-model="courseForm.department_id" required class="form-input">
                   <option value="">Select Department</option>
                   <option
-                    v-for="dept in categories.departments"
+                    v-for="dept in usersStore.departments"
                     :key="dept.id"
                     :value="dept.id"
                   >
@@ -685,10 +725,10 @@
               </div>
               <button
                 type="submit"
-                :disabled="loadingCourse"
+                :disabled="usersStore.loading"
                 class="btn btn-primary w-full disabled:opacity-50"
               >
-                {{ loadingCourse ? "Adding..." : "Add Course" }}
+                {{ usersStore.loading ? "Adding..." : "Add Course" }}
               </button>
             </form>
 
@@ -698,7 +738,7 @@
               </h4>
               <div class="space-y-2 max-h-64 overflow-y-auto pr-2">
                 <div
-                  v-for="course in categories.courses"
+                  v-for="course in usersStore.courses"
                   :key="course.id"
                   class="flex justify-between items-center bg-gray-50 p-3 rounded-lg text-sm border border-gray-100"
                 >
@@ -714,7 +754,13 @@
                   </button>
                 </div>
                 <p
-                  v-if="categories.courses.length === 0"
+                  v-if="usersStore.loading"
+                  class="text-gray-500 text-sm italic"
+                >
+                  Loading...
+                </p>
+                <p
+                  v-else-if="usersStore.courses.length === 0"
                   class="text-gray-500 text-sm italic"
                 >
                   No courses found.
@@ -729,7 +775,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import { useAuthStore } from "../stores/auth";
 import { useMaterialsStore } from "../stores/materials";
 import { useUsersStore } from "../stores/users";
@@ -749,10 +795,8 @@ const uploading = ref(false);
 const creatingUser = ref(false);
 const uploadError = ref("");
 const userError = ref("");
+const loadingLogs = ref(false);
 
-// Dynamic course and department data
-const allDepartments = ref([]);
-const allCourses = ref([]);
 const uploadForm = ref({
   title: "",
   description: "",
@@ -762,7 +806,6 @@ const uploadForm = ref({
   file: null,
 });
 
-// ✅ Updated User Form State
 const userForm = ref({
   full_name: "",
   email: "",
@@ -773,40 +816,69 @@ const userForm = ref({
   department_id: "",
 });
 
-// Audit Logs State
 const auditLogs = ref([]);
 
-// Categories State
-const categories = ref({ departments: [], courses: [] });
-const deptForm = ref({ name: "" });
+const deptForm = ref({ name: "", code: "" });
 const courseForm = ref({ name: "", code: "", department_id: "" });
-const loadingDept = ref(false);
-const loadingCourse = ref(false);
 
 // Computed property to filter courses by selected department
 const filteredCourses = computed(() => {
   if (!uploadForm.value.department_id) {
     return [];
   }
-  return allCourses.value.filter(
+  return usersStore.courses.filter(
     (c) => c.department_id == uploadForm.value.department_id
   );
 });
 
-onMounted(async () => {
-  await materialsStore.fetchMaterials();
-  await usersStore.fetchUsers();
-  await fetchCategories();
+// ==================== LOAD DATA FUNCTIONS ====================
+async function loadAllData() {
+  await Promise.all([
+    materialsStore.fetchMaterials(),
+    usersStore.fetchUsers(),
+    usersStore.fetchDepartments(),
+    usersStore.fetchCourses(),
+  ]);
+}
 
-  try {
-    const res = await api.get("/materials/categories");
-    allDepartments.value = res.data.departments;
-    allCourses.value = res.data.courses;
-  } catch (err) {
-    console.error("Failed to load categories", err);
+async function loadUsersData() {
+  if (usersStore.users.length === 0) {
+    await usersStore.fetchUsers();
   }
+  if (usersStore.departments.length === 0) {
+    await usersStore.fetchDepartments();
+  }
+}
+
+async function loadAuditLogs() {
+  if (auditLogs.value.length === 0) {
+    loadingLogs.value = true;
+    try {
+      const response = await api.get("/admin/audit-logs");
+      auditLogs.value = response.data.data || [];
+    } catch (err) {
+      console.error("Failed to fetch audit logs:", err);
+    } finally {
+      loadingLogs.value = false;
+    }
+  }
+}
+
+async function loadCategoriesData() {
+  if (usersStore.departments.length === 0) {
+    await usersStore.fetchDepartments();
+  }
+  if (usersStore.courses.length === 0) {
+    await usersStore.fetchCourses();
+  }
+}
+
+// ==================== LIFECYCLE ====================
+onMounted(async () => {
+  await loadAllData();
 });
 
+// ==================== MATERIALS FUNCTIONS ====================
 function handleFileChange(e) {
   uploadForm.value.file = e.target.files[0];
 }
@@ -868,7 +940,7 @@ async function handleDownload(id) {
   }
 }
 
-// ✅ Updated Create User Function
+// ==================== USERS FUNCTIONS ====================
 async function handleCreateUser() {
   userError.value = "";
   creatingUser.value = true;
@@ -899,63 +971,46 @@ async function handleCreateUser() {
   }
 }
 
-async function fetchLogs() {
+async function updateUserDept(userId, deptId) {
   try {
-    const response = await api.get("/admin/logs");
-    auditLogs.value = response.data;
+    await api.patch(`/admin/users/${userId}/department`, {
+      department_id: deptId || null,
+    });
+    await usersStore.fetchUsers();
   } catch (err) {
-    console.error("Failed to fetch logs", err);
+    console.error("Update dept error:", err);
+    alert(
+      "Failed to update department: " + (err.response?.data?.message || "Unknown error")
+    );
   }
 }
 
-async function fetchCategories() {
-  try {
-    const response = await api.get("/admin/categories");
-    categories.value = response.data;
-  } catch (err) {
-    console.error("Failed to fetch categories", err);
-  }
-}
-
+// ==================== CATEGORIES FUNCTIONS ====================
 async function handleAddDepartment() {
-  loadingDept.value = true;
   try {
-    await api.post("/admin/categories/department", deptForm.value);
-    deptForm.value = { name: "" };
-    await fetchCategories();
-    const res = await api.get("/materials/categories");
-    allDepartments.value = res.data.departments;
+    await usersStore.addDepartment(deptForm.value);
+    deptForm.value = { name: "", code: "" };
   } catch (err) {
-    alert(err.response?.data?.message || "Failed to add department");
-  } finally {
-    loadingDept.value = false;
+    alert(err.message || "Failed to add department");
   }
 }
 
 async function handleAddCourse() {
-  loadingCourse.value = true;
   try {
-    await api.post("/admin/categories/course", courseForm.value);
+    await usersStore.addCourse(courseForm.value);
     courseForm.value = { name: "", code: "", department_id: "" };
-    await fetchCategories();
-    const res = await api.get("/materials/categories");
-    allCourses.value = res.data.courses;
   } catch (err) {
-    alert(err.response?.data?.message || "Failed to add course");
-  } finally {
-    loadingCourse.value = false;
+    alert(err.message || "Failed to add course");
   }
 }
 
 async function handleDeleteCourse(id) {
   if (confirm("Are you sure you want to delete this course?")) {
     try {
-      await api.delete(`/admin/categories/course/${id}`);
-      await fetchCategories();
-      const res = await api.get("/materials/categories");
-      allCourses.value = res.data.courses;
+      await api.delete(`/admin/courses/${id}`);
+      await usersStore.fetchCourses();
     } catch (err) {
-      alert("Failed to delete course");
+      alert(err.response?.data?.message || "Failed to delete course");
     }
   }
 }
@@ -963,27 +1018,12 @@ async function handleDeleteCourse(id) {
 async function handleDeleteDepartment(id) {
   if (confirm("Are you sure you want to delete this department?")) {
     try {
-      await api.delete(`/admin/categories/department/${id}`);
-      await fetchCategories();
-      const res = await api.get("/materials/categories");
-      allDepartments.value = res.data.departments;
-      allCourses.value = res.data.courses;
+      await api.delete(`/admin/departments/${id}`);
+      await usersStore.fetchDepartments();
+      await usersStore.fetchCourses();
     } catch (err) {
       alert(err.response?.data?.message || "Failed to delete department");
     }
-  }
-}
-
-async function updateUserDept(userId, deptId) {
-  try {
-    await api.patch(`/admin/users/${userId}/department`, {
-      department_id: deptId || null,
-    });
-  } catch (err) {
-    console.error("Update dept error:", err);
-    alert(
-      "Failed to update department: " + (err.response?.data?.message || "Unknown error")
-    );
   }
 }
 </script>
