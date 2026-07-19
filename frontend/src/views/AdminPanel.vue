@@ -978,7 +978,18 @@ async function updateUserDept(userId, deptId) {
     await api.patch(`/admin/users/${userId}/department`, {
       department_id: deptId || null,
     });
-    await usersStore.fetchUsers();
+
+    // ✅ Manually update the local state to avoid cache issues
+    const user = usersStore.users.find((u) => u.id === userId);
+    if (user) {
+      user.department_id = deptId || null;
+      // Find the department name
+      const dept = usersStore.departments.find((d) => d.id == deptId);
+      user.department_name = dept ? dept.name : "Unassigned";
+    }
+
+    // Force reactivity
+    usersStore.users = [...usersStore.users];
   } catch (err) {
     console.error("Update dept error:", err);
     alert(
