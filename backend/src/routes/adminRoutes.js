@@ -20,6 +20,7 @@ router.post('/courses', adminController.addCourse);
 router.get('/users', adminController.getAllUsers);
 router.post('/users', adminController.addUser);
 router.patch('/users/:id/status', adminController.toggleUserStatus);
+router.patch('/users/:id/department', adminController.updateUserDepartment);
 
 // Audit Logs
 router.get('/audit-logs', adminController.getAuditLogs);

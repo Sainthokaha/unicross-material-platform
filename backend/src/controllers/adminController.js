@@ -333,3 +333,28 @@ exports.toggleUserStatus = async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
+
+// ==================== UPDATE USER DEPARTMENT ====================
+exports.updateUserDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { department_id } = req.body;
+
+    const [result] = await db.query(
+      'UPDATE users SET department_id = ? WHERE id = ?',
+      [department_id || null, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      message: 'User department updated successfully' 
+    });
+  } catch (error) {
+    console.error('❌ Error updating user department:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};

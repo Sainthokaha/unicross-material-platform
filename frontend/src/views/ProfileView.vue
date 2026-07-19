@@ -57,7 +57,6 @@
                 type="file"
                 @change="handleFileChange"
                 accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                capture="environment"
                 class="hidden"
                 ref="fileInput"
               />
