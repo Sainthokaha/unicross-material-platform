@@ -22,31 +22,47 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const response = await api.post('/auth/login', credentials)
+      const data = response.data
       
-      if (response.data.success) {
-        // ✅ Save BOTH token and user to localStorage
-        token.value = response.data.token
-        user.value = response.data.user
+      console.log('🔍 Raw Login Response from Backend:', data)
+
+      // ✅ Be flexible: extract token and user whether they are nested under 'success' or not
+      const loginToken = data.token || (data.success ? data.token : null)
+      const loginUser = data.user || (data.success ? data.user : null)
+
+      if (loginToken && loginUser) {
+        console.log('✅ Valid token and user found. Saving to localStorage...')
         
-        localStorage.setItem('token', response.data.token)
-        localStorage.setItem('user', JSON.stringify(response.data.user))
+        token.value = loginToken
+        user.value = loginUser
+        
+        localStorage.setItem('token', loginToken)
+        localStorage.setItem('user', JSON.stringify(loginUser))
+        
+        console.log('💾 localStorage now contains:', {
+          token: localStorage.getItem('token'),
+          user: localStorage.getItem('user')
+        })
         
         // ✅ Redirect based on role
-        if (user.value.role === 'admin') {
+        if (loginUser.role === 'admin') {
           router.push('/admin')
-        } else if (user.value.role === 'student') {
+        } else if (loginUser.role === 'student') {
           router.push('/student-dashboard')
-        } else if (user.value.role === 'lecturer') {
+        } else if (loginUser.role === 'lecturer') {
           router.push('/lecturer-dashboard')
         } else {
           router.push('/')
         }
         
         return response.data
+      } else {
+        console.error('❌ Login response is missing token or user object:', data)
+        error.value = 'Login failed: Invalid response from server'
       }
     } catch (err) {
       error.value = err.response?.data?.message || 'Login failed. Please check your credentials.'
-      console.error('❌ Login Error:', err)
+      console.error('❌ Login Network Error:', err)
       throw err
     } finally {
       loading.value = false
@@ -57,23 +73,23 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return
     try {
       const response = await api.get('/auth/me')
-      if (response.data.success) {
-        // ✅ Update local memory AND localStorage with fresh DB data
+      if (response.data.success && response.data.data) {
         user.value = response.data.data
         localStorage.setItem('user', JSON.stringify(response.data.data))
+        console.log('✅ Profile refreshed from database')
       }
     } catch (err) {
       console.error('❌ Failed to fetch profile:', err)
-      // If token is invalid/expired, clear everything and log out
-      logout() 
+      logout() // If token is invalid, clear everything
     }
   }
 
   function logout() {
+    console.log('🚪 Logging out, clearing localStorage...')
     user.value = null
     token.value = null
     localStorage.removeItem('token')
-    localStorage.removeItem('user') // ✅ Clean up user data on logout
+    localStorage.removeItem('user')
     router.push('/login')
   }
 
