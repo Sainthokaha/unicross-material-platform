@@ -1,11 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import api from '../api/axios'
-import router from '../router' // Make sure this path is correct for your project
+import router from '../router'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref(null)
+  // ✅ Load BOTH token and user from localStorage on startup
+  const savedUser = localStorage.getItem('user')
+  const user = ref(savedUser ? JSON.parse(savedUser) : null)
   const token = ref(localStorage.getItem('token') || null)
+  
   const loading = ref(false)
   const error = ref(null)
 
@@ -21,11 +24,12 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.post('/auth/login', credentials)
       
       if (response.data.success) {
-        // ✅ Save token and fresh user data exactly as the backend sends it
+        // ✅ Save BOTH token and user to localStorage
         token.value = response.data.token
-        user.value = response.data.user 
+        user.value = response.data.user
         
         localStorage.setItem('token', response.data.token)
+        localStorage.setItem('user', JSON.stringify(response.data.user))
         
         // ✅ Redirect based on role
         if (user.value.role === 'admin') {
@@ -54,11 +58,14 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await api.get('/auth/me')
       if (response.data.success) {
-        user.value = response.data.data // ✅ Overwrite with fresh DB data
+        // ✅ Update local memory AND localStorage with fresh DB data
+        user.value = response.data.data
+        localStorage.setItem('user', JSON.stringify(response.data.data))
       }
     } catch (err) {
       console.error('❌ Failed to fetch profile:', err)
-      logout() // If token is invalid, log them out
+      // If token is invalid/expired, clear everything and log out
+      logout() 
     }
   }
 
@@ -66,6 +73,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     token.value = null
     localStorage.removeItem('token')
+    localStorage.removeItem('user') // ✅ Clean up user data on logout
     router.push('/login')
   }
 
