@@ -353,54 +353,38 @@ exports.updateUserDepartment = async (req, res) => {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
 
-    // Fix Matric Number Format: YEAR/DEPTCODE/NUMBER (e.g., 24/CSC/001)
     let matricNumber = user[0].matric_number;
     
     if (user[0].role === 'student' && department_id) {
-      // Get the department code
       const [dept] = await db.query('SELECT code FROM departments WHERE id = ?', [department_id]);
       if (dept.length > 0) {
         const deptCode = dept[0].code;
         
-        // Extract the student number from existing matric (last part after /)
-        let studentNumber = '001'; // Default
-        let year = '24'; // Default to current year (2024)
+        // Parse existing matric to get year and number
+        let year = '24';
+        let number = '001';
         
-        if (matricNumber) {
+        if (matricNumber && matricNumber.includes('/')) {
           const parts = matricNumber.split('/');
-          
-          // Find the numeric student number (usually the last part)
-          for (let i = parts.length - 1; i >= 0; i--) {
-            if (parts[i] && /^\d+$/.test(parts[i])) {
-              studentNumber = parts[i].padStart(3, '0');
-              break;
-            }
+          // Get year (first part if it's numeric)
+          if (parts[0] && /^\d+$/.test(parts[0])) {
+            year = parts[0].length === 4 ? parts[0].slice(-2) : parts[0];
           }
-          
-          // Check if first part is a valid year (2 or 4 digits)
-          if (parts[0] && (/^\d{2}$/.test(parts[0]) || /^\d{4}$/.test(parts[0]))) {
-            // Use last 2 digits if it's a 4-digit year
-            year = parts[0].slice(-2);
+          // Get number (last part)
+          if (parts[parts.length - 1] && /^\d+$/.test(parts[parts.length - 1])) {
+            number = parts[parts.length - 1].padStart(3, '0');
           }
-          // If first part is not a year, keep default '24'
         }
-
-        // Construct correct format: 24/CSC/001
-        matricNumber = `${year}/${deptCode}/${studentNumber}`;
+        
+        // Build correct format: 24/CSC/001
+        matricNumber = `${year}/${deptCode}/${number}`;
       }
-    } else if (user[0].role !== 'student') {
-      matricNumber = null;
     }
 
-    // Update the database
     const [result] = await db.query(
       'UPDATE users SET department_id = ?, matric_number = ? WHERE id = ?',
       [department_id, matricNumber, id]
     );
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ success: false, message: 'User not found' });
-    }
 
     res.status(200).json({ 
       success: true, 
