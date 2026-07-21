@@ -4,7 +4,7 @@ import api from '../api/axios'
 import router from '../router'
 
 export const useAuthStore = defineStore('auth', () => {
-  // ✅ Load BOTH token and user from localStorage on startup
+  // 1. Initialize from localStorage immediately
   const savedUser = localStorage.getItem('user')
   const user = ref(savedUser ? JSON.parse(savedUser) : null)
   const token = ref(localStorage.getItem('token') || null)
@@ -13,9 +13,6 @@ export const useAuthStore = defineStore('auth', () => {
   const error = ref(null)
 
   const isAuthenticated = computed(() => !!token.value)
-  const isAdmin = computed(() => user.value?.role === 'admin')
-  const isStudent = computed(() => user.value?.role === 'student')
-  const isLecturer = computed(() => user.value?.role === 'lecturer')
 
   async function login(credentials) {
     loading.value = true
@@ -24,68 +21,50 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await api.post('/auth/login', credentials)
       const data = response.data
       
-      console.log('🔍 Raw Login Response from Backend:', data)
-
-      // ✅ Be flexible: extract token and user whether they are nested under 'success' or not
-      const loginToken = data.token || (data.success ? data.token : null)
-      const loginUser = data.user || (data.success ? data.user : null)
+      // Handle both { token, user } and { success: true, token, user }
+      const loginToken = data.token
+      const loginUser = data.user
 
       if (loginToken && loginUser) {
-        console.log('✅ Valid token and user found. Saving to localStorage...')
-        
         token.value = loginToken
         user.value = loginUser
         
+        // 2. Save BOTH to localStorage
         localStorage.setItem('token', loginToken)
         localStorage.setItem('user', JSON.stringify(loginUser))
         
-        console.log('💾 localStorage now contains:', {
-          token: localStorage.getItem('token'),
-          user: localStorage.getItem('user')
-        })
+        // 3. Redirect
+        if (loginUser.role === 'admin') router.push('/admin')
+        else if (loginUser.role === 'student') router.push('/student-dashboard')
+        else if (loginUser.role === 'lecturer') router.push('/lecturer-dashboard')
+        else router.push('/')
         
-        // ✅ Redirect based on role
-        if (loginUser.role === 'admin') {
-          router.push('/admin')
-        } else if (loginUser.role === 'student') {
-          router.push('/student-dashboard')
-        } else if (loginUser.role === 'lecturer') {
-          router.push('/lecturer-dashboard')
-        } else {
-          router.push('/')
-        }
-        
-        return response.data
-      } else {
-        console.error('❌ Login response is missing token or user object:', data)
-        error.value = 'Login failed: Invalid response from server'
+        return data
       }
     } catch (err) {
-      error.value = err.response?.data?.message || 'Login failed. Please check your credentials.'
-      console.error('❌ Login Network Error:', err)
+      error.value = err.response?.data?.message || 'Login failed.'
       throw err
     } finally {
       loading.value = false
     }
   }
 
-  async function fetchProfile() {
+  // 4. Force-refresh profile data from DB (called by ProfileView.vue)
+  async function refreshProfile() {
     if (!token.value) return
     try {
       const response = await api.get('/auth/me')
       if (response.data.success && response.data.data) {
         user.value = response.data.data
         localStorage.setItem('user', JSON.stringify(response.data.data))
-        console.log('✅ Profile refreshed from database')
       }
     } catch (err) {
-      console.error('❌ Failed to fetch profile:', err)
-      logout() // If token is invalid, clear everything
+      console.error('Failed to refresh profile:', err)
+      logout()
     }
   }
 
   function logout() {
-    console.log('🚪 Logging out, clearing localStorage...')
     user.value = null
     token.value = null
     localStorage.removeItem('token')
@@ -93,17 +72,5 @@ export const useAuthStore = defineStore('auth', () => {
     router.push('/login')
   }
 
-  return {
-    user,
-    token,
-    loading,
-    error,
-    isAuthenticated,
-    isAdmin,
-    isStudent,
-    isLecturer,
-    login,
-    fetchProfile,
-    logout
-  }
+  return { user, token, loading, error, isAuthenticated, login, refreshProfile, logout }
 })

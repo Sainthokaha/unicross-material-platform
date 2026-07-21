@@ -205,7 +205,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue"; // ✅ Added onMounted
+import { ref, computed, onMounted } from "vue";
 import { useAuthStore } from "../stores/auth";
 import Sidebar from "../components/Sidebar.vue";
 import api from "../api/axios";
@@ -215,13 +215,11 @@ const authStore = useAuthStore();
 const fileInput = ref(null);
 const imageMessage = ref("");
 const imageError = ref(false);
-
 const passwordForm = ref({ currentPassword: "", newPassword: "" });
 const passwordMessage = ref("");
 const passwordError = ref(false);
 const changingPassword = ref(false);
 
-// Dashboard path based on role
 const dashboardPath = computed(() => {
   const role = authStore.user?.role;
   if (role === "student") return "/student-dashboard";
@@ -232,50 +230,29 @@ const dashboardPath = computed(() => {
 
 const userInitials = computed(() => {
   const name = authStore.user?.full_name || authStore.user?.name || "User";
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 });
 
-// ✅ DYNAMIC IMAGE URL HELPER
 const getProfileImageUrl = (imagePath) => {
   if (!imagePath) return null;
-  if (imagePath.startsWith("http")) return imagePath;
-
-  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
-  const baseUrl = apiUrl.replace("/api", "");
-  return `${baseUrl}${imagePath}?t=${Date.now()}`;
+  if (imagePath.startsWith('http')) return imagePath;
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+  return `${apiUrl.replace('/api', '')}${imagePath}?t=${Date.now()}`;
 };
-
-function handleImageError() {
-  console.warn("Profile image failed to load");
-}
 
 function handleFileChange(e) {
   const file = e.target.files[0];
   if (file) {
-    const validTypes = [
-      "image/jpeg",
-      "image/jpg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-    ];
-    if (!validTypes.includes(file.type)) {
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
       imageError.value = true;
-      imageMessage.value = "Please select a valid image file (JPG, PNG, GIF, or WebP)";
+      imageMessage.value = 'Please select a valid image (JPG, PNG, WebP)';
       return;
     }
-
     if (file.size > 5 * 1024 * 1024) {
       imageError.value = true;
-      imageMessage.value = "Image must be less than 5MB";
+      imageMessage.value = 'Image must be less than 5MB';
       return;
     }
-
     handleImageUpload(file);
   }
 }
@@ -283,29 +260,18 @@ function handleFileChange(e) {
 async function handleImageUpload(file) {
   imageMessage.value = "";
   imageError.value = false;
-
   const formData = new FormData();
   formData.append("profile_image", file);
 
   try {
-    const res = await api.post("/auth/profile-image", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
-
+    const res = await api.post("/auth/profile-image", formData, { headers: { "Content-Type": "multipart/form-data" } });
     authStore.user.profile_image = res.data.profileImage;
-    authStore.user = { ...authStore.user };
-
-    imageMessage.value = "Profile picture updated successfully!";
-
-    setTimeout(() => {
-      imageMessage.value = "";
-    }, 3000);
+    localStorage.setItem('user', JSON.stringify(authStore.user)); // Sync localStorage
+    imageMessage.value = "Profile picture updated!";
+    setTimeout(() => { imageMessage.value = ""; }, 3000);
   } catch (err) {
     imageError.value = true;
-    imageMessage.value = err.response?.data?.message || "Failed to upload image";
-    console.error("Upload error:", err);
+    imageMessage.value = err.response?.data?.message || "Failed to upload";
   }
 }
 
@@ -313,7 +279,6 @@ async function handleChangePassword() {
   passwordMessage.value = "";
   passwordError.value = false;
   changingPassword.value = true;
-
   try {
     await api.post("/auth/change-password", passwordForm.value);
     passwordMessage.value = "Password changed successfully!";
@@ -326,23 +291,8 @@ async function handleChangePassword() {
   }
 }
 
-// ✅ NEW: Fetch fresh data from the database when the page loads
-async function fetchFreshProfile() {
-  try {
-    const response = await api.get("/auth/me");
-    if (response.data && response.data.data) {
-      // Overwrite the local store data with the fresh database data
-      authStore.user = response.data.data;
-      // Force Vue reactivity
-      authStore.user = { ...authStore.user };
-    }
-  } catch (err) {
-    console.error("Failed to fetch fresh profile data:", err);
-  }
-}
-
-// ✅ Run the fetch function automatically when the component mounts
-onMounted(() => {
-  fetchFreshProfile();
+// ✅ CRITICAL: Fetch fresh data from DB every time this page loads
+onMounted(async () => {
+  await authStore.refreshProfile();
 });
 </script>

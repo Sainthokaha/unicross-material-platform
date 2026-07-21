@@ -340,56 +340,60 @@ exports.updateUserDepartment = async (req, res) => {
     const { id } = req.params;
     let { department_id } = req.body;
 
-    // Cast to Integer
-    if (department_id === "" || department_id === null || department_id === undefined) {
-      department_id = null;
-    } else {
-      department_id = parseInt(department_id, 10);
-    }
+    // 1. Sanitize input
+    department_id = department_id ? parseInt(department_id, 10) : null;
 
-    // Get current user data
-    const [user] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
-    if (user.length === 0) {
+    // 2. Get current user
+    const [users] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
+    if (users.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    const user = users[0];
 
-    let matricNumber = user[0].matric_number;
-    
-    if (user[0].role === 'student' && department_id) {
-      const [dept] = await db.query('SELECT code FROM departments WHERE id = ?', [department_id]);
-      if (dept.length > 0) {
-        const deptCode = dept[0].code;
+    let newMatric = user.matric_number;
+
+    // 3. Format Matric Number ONLY if student and has a department
+    if (user.role === 'student' && department_id) {
+      const [depts] = await db.query('SELECT code FROM departments WHERE id = ?', [department_id]);
+      if (depts.length > 0) {
+        const deptCode = depts[0].code;
         
-        // Parse existing matric to get year and number
-        let year = '24';
-        let number = '001';
-        
-        if (matricNumber && matricNumber.includes('/')) {
-          const parts = matricNumber.split('/');
-          // Get year (first part if it's numeric)
-          if (parts[0] && /^\d+$/.test(parts[0])) {
-            year = parts[0].length === 4 ? parts[0].slice(-2) : parts[0];
-          }
-          // Get number (last part)
-          if (parts[parts.length - 1] && /^\d+$/.test(parts[parts.length - 1])) {
-            number = parts[parts.length - 1].padStart(3, '0');
+        // Extract the student's unique number (last part of old matric, or default to 001)
+        let studentNum = '001';
+        if (user.matric_number) {
+          const parts = user.matric_number.split('/');
+          const lastPart = parts[parts.length - 1];
+          if (/^\d+$/.test(lastPart)) {
+            studentNum = lastPart.padStart(3, '0');
           }
         }
         
-        // Build correct format: 24/CSC/001
-        matricNumber = `${year}/${deptCode}/${number}`;
+        // Build perfect format: 24/CSC/001
+        newMatric = `24/${deptCode}/${studentNum}`;
       }
+    } else if (user.role !== 'student') {
+      newMatric = null; // Clear matric for staff/admin
     }
 
-    const [result] = await db.query(
+    // 4. Update Database
+    await db.query(
       'UPDATE users SET department_id = ?, matric_number = ? WHERE id = ?',
-      [department_id, matricNumber, id]
+      [department_id, newMatric, id]
     );
+
+    // 5. Fetch the fully updated user to send back to frontend
+    const [updatedUsers] = await db.query(`
+      SELECT u.id, u.full_name, u.email, u.role, u.matric_number, u.staff_id, 
+             u.is_active, u.department_id, d.name as department_name 
+      FROM users u 
+      LEFT JOIN departments d ON u.department_id = d.id 
+      WHERE u.id = ?
+    `, [id]);
 
     res.status(200).json({ 
       success: true, 
-      message: 'User department updated successfully',
-      newMatric: matricNumber
+      message: 'User updated successfully',
+      user: updatedUsers[0] // ✅ Send the complete, fresh user object
     });
   } catch (error) {
     console.error('❌ Error updating user department:', error);
