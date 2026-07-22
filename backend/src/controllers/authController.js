@@ -2,10 +2,8 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const fs = require('fs');
-const path = require('path');
 
-// Initialize Resend for reliable email delivery (Bypasses Render SMTP blocks)
+// Initialize Resend for reliable email delivery
 const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -27,7 +25,7 @@ exports.register = async (req, res) => {
     const password_hash = await bcrypt.hash(password, salt);
     const verificationToken = crypto.randomBytes(32).toString('hex');
     const verificationTokenHash = crypto.createHash('sha256').update(verificationToken).digest('hex');
-    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const verificationTokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
     const [result] = await db.query(
       `INSERT INTO users (full_name, email, password_hash, role, matric_number, staff_id, department_id, verification_token, verification_token_expiry, is_active, email_verified) 
@@ -87,33 +85,31 @@ exports.login = async (req, res) => {
   }
 };
 
-// ==================== FORGOT PASSWORD (Updated with Resend) ====================
+// ==================== FORGOT PASSWORD ====================
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
-    console.log(`📩 Password reset requested for: ${email}`);
 
     const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
     if (users.length === 0) {
-      return res.status(200).json({ success: true, message: 'If that email exists in our system, a reset link has been sent.' });
+      return res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
     }
 
     const user = users[0];
     const resetToken = crypto.randomBytes(32).toString('hex');
     const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000);
 
     await db.query(
       'UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE id = ?',
       [resetTokenHash, resetTokenExpiry, user.id]
     );
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://unicross-material-platform.vercel.app';
     const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-    // 🔥 SEND EMAIL VIA RESEND API (Bypasses Render SMTP blocks) 🔥
     await resend.emails.send({
-      from: 'UNICROSS Platform <onboarding@resend.dev>', // Free testing domain provided by Resend
+      from: 'UNICROSS Platform <onboarding@resend.dev>',
       to: email,
       subject: 'Password Reset Request',
       html: `
@@ -122,16 +118,13 @@ exports.forgotPassword = async (req, res) => {
           <p>Click the button below to reset your password:</p>
           <a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin: 20px 0;">Reset Password</a>
           <p style="color: #666; font-size: 14px;">This link will expire in 1 hour.</p>
-          <p style="color: #666; font-size: 14px;">If you did not request this, please ignore this email.</p>
         </div>
       `,
     });
 
-    console.log('✅ Reset email sent successfully via Resend!');
-    res.status(200).json({ success: true, message: 'If that email exists in our system, a reset link has been sent.' });
-
+    res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
   } catch (error) {
-    console.error('❌ FORGOT PASSWORD ERROR DETAILS:', error); 
+    console.error('❌ FORGOT PASSWORD ERROR:', error); 
     res.status(500).json({ success: false, message: 'Server error while processing password reset.' });
   }
 };
@@ -165,9 +158,7 @@ exports.resetPassword = async (req, res) => {
       [password_hash, user.id]
     );
 
-    console.log(`✅ Password reset successfully for user ID: ${user.id}`);
     res.status(200).json({ success: true, message: 'Password has been reset successfully' });
-
   } catch (error) {
     console.error('❌ Reset Password Error:', error);
     res.status(500).json({ success: false, message: 'Server error during password reset' });
@@ -215,7 +206,6 @@ exports.updateProfileImage = async (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    // ✅ Return ONLY the filename, not the full path
     const profileImage = `/uploads/${req.file.filename}`;
     
     await db.query('UPDATE users SET profile_image = ? WHERE id = ?', [profileImage, userId]);
@@ -259,7 +249,6 @@ exports.verifyEmail = async (req, res) => {
     );
 
     res.status(200).json({ success: true, message: 'Email verified successfully' });
-
   } catch (error) {
     console.error('❌ Verify Email Error:', error);
     res.status(500).json({ success: false, message: 'Server error during email verification' });
@@ -269,12 +258,14 @@ exports.verifyEmail = async (req, res) => {
 // ==================== GET CURRENT USER (ME) ====================
 exports.getMe = async (req, res) => {
   try {
+    const userId = req.user.id; // Attached by verifyToken middleware
+
     const [users] = await db.query(
-      `SELECT u.id, u.full_name, u.email, u.role, u.matric_number, u.staff_id, u.profile_image, u.is_active, u.email_verified, d.name as department_name 
+      `SELECT u.id, u.full_name, u.email, u.role, u.matric_number, u.staff_id, u.profile_image, u.is_active, u.email_verified, u.department_id, d.name as department_name 
        FROM users u 
        LEFT JOIN departments d ON u.department_id = d.id 
        WHERE u.id = ?`, 
-      [req.user.id]
+      [userId]
     );
 
     if (users.length === 0) {

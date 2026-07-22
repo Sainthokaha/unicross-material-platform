@@ -5,14 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { verifyToken } = require('../middleware/auth');
-const { 
-  register, 
-  login, 
-  forgotPassword, 
-  resetPassword, 
-  changePassword,
-  updateProfileImage 
-} = require('../controllers/authController');
+const authController = require('../controllers/authController'); // ✅ Import the whole controller
 
 // Ensure uploads directory exists (Crucial for Render deployment)
 const uploadDir = path.join(__dirname, '../../uploads');
@@ -34,27 +27,32 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage,
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif/;
+    // ✅ Added 'webp' to support modern mobile image formats
+    const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
     
     if (extname && mimetype) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files (jpeg, jpg, png, gif) are allowed!'));
+      cb(new Error('Only image files (jpeg, jpg, png, gif, webp) are allowed!'));
     }
   },
   limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
 
-// Auth Routes
-router.post('/register', register);
-router.post('/login', login);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', resetPassword);
-router.post('/change-password', verifyToken, changePassword);
+// ==================== PUBLIC ROUTES ====================
+router.post('/register', authController.register);
+router.post('/login', authController.login);
+router.post('/forgot-password', authController.forgotPassword);
+router.post('/reset-password', authController.resetPassword);
+router.get('/verify-email/:token', authController.verifyEmail);
 
-// Profile Image Upload Route
-router.post('/profile-image', verifyToken, upload.single('profile_image'), updateProfileImage);
+// ==================== PROTECTED ROUTES ====================
+// ✅ THIS IS THE CRITICAL FIX FOR THE 404 ERROR
+router.get('/me', verifyToken, authController.getMe); 
+
+router.post('/change-password', verifyToken, authController.changePassword);
+router.post('/profile-image', verifyToken, upload.single('profile_image'), authController.updateProfileImage);
 
 module.exports = router;
