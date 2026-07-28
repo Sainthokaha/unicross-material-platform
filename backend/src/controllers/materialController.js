@@ -205,6 +205,41 @@ const getCategories = async (req, res) => {
   }
 };
 
+// ==================== UPLOAD MATERIAL ====================
+exports.uploadMaterial = async (req, res) => {
+  try {
+    const { title, description, course_id, semester } = req.body;
+    const uploaded_by = req.user.id; // Comes from verifyToken middleware
+
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+    if (!title || !course_id || !semester) {
+      return res.status(400).json({ success: false, message: 'Title, course, and semester are required' });
+    }
+
+    // Save the relative path to the database
+    const file_url = `/uploads/${req.file.filename}`;
+    const original_name = req.file.originalname;
+
+    // Insert into database with 'pending' status
+    const [result] = await db.query(
+      `INSERT INTO materials (title, description, file_url, original_name, course_id, semester, uploaded_by, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [title, description || '', file_url, original_name, course_id, semester, uploaded_by]
+    );
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Material uploaded successfully and is pending approval',
+      data: { id: result.insertId }
+    });
+  } catch (error) {
+    console.error('❌ Upload Material Error:', error);
+    res.status(500).json({ success: false, message: 'Server error during material upload' });
+  }
+};
+
 module.exports = { 
   uploadMaterial, 
   getMaterials, 
