@@ -3,34 +3,51 @@ const path = require('path');
 const fs = require('fs');
 
 // ==========================================
-// 1. UPLOAD MATERIAL
-// ==========================================
-const uploadMaterial = async (req, res) => {
+// ==================== UPLOAD MATERIAL ====================
+exports.uploadMaterial = async (req, res) => {
   try {
-    const { title, description, course_id, semester } = req.body;
-    const uploaded_by = req.user.id;
-    const file_path = req.file.filename;
-    const original_name = req.file.originalname;
+    // 1. Debug logging (This will show up in your Render Logs!)
+    console.log('📥 Upload Request Body:', req.body);
+    console.log('📁 Uploaded File:', req.file ? req.file.filename : 'NO FILE');
+    console.log('👤 User ID:', req.user?.id);
 
-    if (!title || !course_id || !semester || !file_path) {
-      return res.status(400).json({ message: 'Title, course, semester, and file are required' });
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded. Please select a file.' });
     }
 
-    const [result] = await pool.query(
-      `INSERT INTO materials (title, description, course_id, semester, file_path, original_name, uploaded_by, status) 
+    const { title, description, course_id, semester } = req.body;
+    const uploaded_by = req.user.id; // Attached by verifyToken middleware
+
+    if (!title || !course_id || !semester) {
+      return res.status(400).json({ success: false, message: 'Title, course, and semester are required' });
+    }
+
+    // 2. Prepare file data
+    const file_url = `/uploads/${req.file.filename}`;
+    const original_name = req.file.originalname;
+
+    // 3. Insert into database
+    // ⚠️ IMPORTANT: If your database uses 'file_path' instead of 'file_url', or 'user_id' instead of 'uploaded_by', change those names below to match your exact schema!
+    const [result] = await db.query(
+      `INSERT INTO materials (title, description, file_url, original_name, course_id, semester, uploaded_by, status) 
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [title, description, course_id, semester, file_path, original_name, uploaded_by]
+      [title, description || '', file_url, original_name, course_id, semester, uploaded_by]
     );
 
-    await pool.query(
-      'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
-      [uploaded_by, 'MATERIAL_UPLOAD', 'materials', result.insertId, `Uploaded: ${title}`]
-    );
+    console.log(`✅ Material uploaded successfully. ID: ${result.insertId}`);
 
-    res.status(201).json({ message: 'Material uploaded successfully and pending approval', id: result.insertId });
-  } catch (err) {
-    console.error('Upload error:', err);
-    res.status(500).json({ message: 'Failed to upload material' });
+    res.status(201).json({ 
+      success: true, 
+      message: 'Material uploaded successfully and is pending approval',
+      data: { id: result.insertId }
+    });
+  } catch (error) {
+    // 4. This is the exact error that will tell us what's wrong
+    console.error('❌ CRITICAL Upload Material Error:', error); 
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error during material upload: ' + error.message 
+    });
   }
 };
 
@@ -202,41 +219,6 @@ const getCategories = async (req, res) => {
   } catch (err) {
     console.error('Fetch categories error:', err);
     res.status(500).json({ message: 'Failed to fetch categories' });
-  }
-};
-
-// ==================== UPLOAD MATERIAL ====================
-exports.uploadMaterial = async (req, res) => {
-  try {
-    const { title, description, course_id, semester } = req.body;
-    const uploaded_by = req.user.id; // Comes from verifyToken middleware
-
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded' });
-    }
-    if (!title || !course_id || !semester) {
-      return res.status(400).json({ success: false, message: 'Title, course, and semester are required' });
-    }
-
-    // Save the relative path to the database
-    const file_url = `/uploads/${req.file.filename}`;
-    const original_name = req.file.originalname;
-
-    // Insert into database with 'pending' status
-    const [result] = await db.query(
-      `INSERT INTO materials (title, description, file_url, original_name, course_id, semester, uploaded_by, status) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [title, description || '', file_url, original_name, course_id, semester, uploaded_by]
-    );
-
-    res.status(201).json({ 
-      success: true, 
-      message: 'Material uploaded successfully and is pending approval',
-      data: { id: result.insertId }
-    });
-  } catch (error) {
-    console.error('❌ Upload Material Error:', error);
-    res.status(500).json({ success: false, message: 'Server error during material upload' });
   }
 };
 
