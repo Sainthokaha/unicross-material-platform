@@ -3,51 +3,50 @@ const path = require('path');
 const fs = require('fs');
 
 // ==========================================
-// ==================== UPLOAD MATERIAL ====================
-exports.uploadMaterial = async (req, res) => {
+// 1. UPLOAD MATERIAL
+// ==========================================
+const uploadMaterial = async (req, res) => {
   try {
-    // 1. Debug logging (This will show up in your Render Logs!)
+    // Debug logging to help us see exactly what's happening
     console.log('📥 Upload Request Body:', req.body);
     console.log('📁 Uploaded File:', req.file ? req.file.filename : 'NO FILE');
     console.log('👤 User ID:', req.user?.id);
 
+    const { title, description, course_id, semester } = req.body;
+    
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No file uploaded. Please select a file.' });
     }
 
-    const { title, description, course_id, semester } = req.body;
-    const uploaded_by = req.user.id; // Attached by verifyToken middleware
-
     if (!title || !course_id || !semester) {
-      return res.status(400).json({ success: false, message: 'Title, course, and semester are required' });
+      return res.status(400).json({ success: false, message: 'Title, course, semester, and file are required' });
     }
 
-    // 2. Prepare file data
-    const file_url = `/uploads/${req.file.filename}`;
+    const uploaded_by = req.user.id;
+    const file_path = req.file.filename; // Stores just the filename (getMaterials adds the /uploads/ prefix)
     const original_name = req.file.originalname;
 
-    // 3. Insert into database
-    // ⚠️ IMPORTANT: If your database uses 'file_path' instead of 'file_url', or 'user_id' instead of 'uploaded_by', change those names below to match your exact schema!
-    const [result] = await db.query(
-      `INSERT INTO materials (title, description, file_url, original_name, course_id, semester, uploaded_by, status) 
+    const [result] = await pool.query(
+      `INSERT INTO materials (title, description, course_id, semester, file_path, original_name, uploaded_by, status) 
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [title, description || '', file_url, original_name, course_id, semester, uploaded_by]
+      [title, description || '', course_id, semester, file_path, original_name, uploaded_by]
+    );
+
+    await pool.query(
+      'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+      [uploaded_by, 'MATERIAL_UPLOAD', 'materials', result.insertId, `Uploaded: ${title}`]
     );
 
     console.log(`✅ Material uploaded successfully. ID: ${result.insertId}`);
 
     res.status(201).json({ 
       success: true, 
-      message: 'Material uploaded successfully and is pending approval',
-      data: { id: result.insertId }
+      message: 'Material uploaded successfully and pending approval', 
+      id: result.insertId 
     });
-  } catch (error) {
-    // 4. This is the exact error that will tell us what's wrong
-    console.error('❌ CRITICAL Upload Material Error:', error); 
-    res.status(500).json({ 
-      success: false, 
-      message: 'Server error during material upload: ' + error.message 
-    });
+  } catch (err) {
+    console.error('❌ CRITICAL Upload error:', err);
+    res.status(500).json({ success: false, message: 'Failed to upload material: ' + err.message });
   }
 };
 
@@ -60,7 +59,6 @@ const getMaterials = async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     const offset = (page - 1) * limit;
 
-    // ✅ UPDATED: Added department_name to the SELECT query
     let query = `
       SELECT m.*, c.name as course_name, c.department_id, d.name as department_name, u.full_name as uploader_name
       FROM materials m
@@ -116,6 +114,7 @@ const getMaterials = async (req, res) => {
     const formatted = materials.map(m => ({ ...m, file_url: `${baseUrl}/uploads/${m.file_path}` }));
     
     res.json({
+      success: true,
       materials: formatted,
       pagination: {
         currentPage: page,
@@ -127,7 +126,7 @@ const getMaterials = async (req, res) => {
 
   } catch (err) {
     console.error('Fetch materials error:', err);
-    res.status(500).json({ message: 'Failed to fetch materials: ' + err.message });
+    res.status(500).json({ success: false, message: 'Failed to fetch materials: ' + err.message });
   }
 };
 
@@ -139,17 +138,17 @@ const approveMaterial = async (req, res) => {
     const { id } = req.params;
     const [result] = await pool.query("UPDATE materials SET status = 'approved' WHERE id = ?", [id]);
     
-    if (result.affectedRows === 0) return res.status(404).json({ message: 'Material not found' });
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Material not found' });
 
     await pool.query(
       'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
       [req.user.id, 'MATERIAL_APPROVE', 'materials', id, 'Material approved by admin']
     );
 
-    res.json({ message: 'Material approved successfully' });
+    res.json({ success: true, message: 'Material approved successfully' });
   } catch (err) {
     console.error('Approve error:', err);
-    res.status(500).json({ message: 'Failed to approve material' });
+    res.status(500).json({ success: false, message: 'Failed to approve material' });
   }
 };
 
@@ -163,17 +162,17 @@ const rejectMaterial = async (req, res) => {
 
     const [result] = await pool.query("UPDATE materials SET status = 'rejected', rejection_reason = ? WHERE id = ?", [reason, id]);
     
-    if (result.affectedRows === 0) return res.status(404).json({ message: 'Material not found' });
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Material not found' });
 
     await pool.query(
       'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
       [req.user.id, 'MATERIAL_REJECT', 'materials', id, `Rejected: ${reason}`]
     );
 
-    res.json({ message: 'Material rejected successfully' });
+    res.json({ success: true, message: 'Material rejected successfully' });
   } catch (err) {
     console.error('Reject error:', err);
-    res.status(500).json({ message: 'Failed to reject material' });
+    res.status(500).json({ success: false, message: 'Failed to reject material' });
   }
 };
 
@@ -185,13 +184,13 @@ const downloadMaterial = async (req, res) => {
     const { id } = req.params;
     const [materials] = await pool.query('SELECT * FROM materials WHERE id = ?', [id]);
     
-    if (materials.length === 0) return res.status(404).json({ message: 'Material not found' });
+    if (materials.length === 0) return res.status(404).json({ success: false, message: 'Material not found' });
 
     const material = materials[0];
     const filePath = path.join(__dirname, '../../uploads', material.file_path);
 
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'File not found on server' });
+      return res.status(404).json({ success: false, message: 'File not found on server' });
     }
 
     await pool.query('UPDATE materials SET download_count = download_count + 1 WHERE id = ?', [id]);
@@ -204,7 +203,7 @@ const downloadMaterial = async (req, res) => {
     res.download(filePath, material.original_name);
   } catch (err) {
     console.error('Download error:', err);
-    res.status(500).json({ message: 'Failed to download material' });
+    res.status(500).json({ success: false, message: 'Failed to download material' });
   }
 };
 
@@ -215,10 +214,10 @@ const getCategories = async (req, res) => {
   try {
     const [departments] = await pool.query('SELECT * FROM departments ORDER BY name ASC');
     const [courses] = await pool.query('SELECT * FROM courses ORDER BY name ASC');
-    res.json({ departments, courses });
+    res.json({ success: true, departments, courses });
   } catch (err) {
     console.error('Fetch categories error:', err);
-    res.status(500).json({ message: 'Failed to fetch categories' });
+    res.status(500).json({ success: false, message: 'Failed to fetch categories' });
   }
 };
 
