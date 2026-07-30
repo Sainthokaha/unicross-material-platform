@@ -45,12 +45,12 @@
         </button>
         <button
           @click="
-            activeTab = 'categories';
-            loadCategoriesData();
+            activeTab = 'logs';
+            loadAuditLogs();
           "
           :class="[
             'w-full text-left px-4 py-3 rounded-lg transition flex items-center gap-3',
-            activeTab === 'categories'
+            activeTab === 'logs'
               ? 'bg-primary-600 text-white'
               : 'text-gray-300 hover:bg-gray-800',
           ]"
@@ -60,10 +60,10 @@
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+              d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
             ></path>
           </svg>
-          Categories
+          Audit Logs
         </button>
       </template>
     </Sidebar>
@@ -160,7 +160,6 @@
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">File</label>
               <input type="file" @change="handleFileChange" required class="form-input" />
-              <p class="text-xs text-gray-500 mt-1">Max file size: 50MB.</p>
             </div>
             <p v-if="uploadError" class="text-red-600 text-sm">{{ uploadError }}</p>
             <button
@@ -232,7 +231,6 @@
                     >
                       Reject
                     </button>
-                    ]
                   </td>
                 </tr>
               </tbody>
@@ -340,99 +338,64 @@
         </div>
       </div>
 
-      <!-- ================= CATEGORIES TAB ================= -->
-      <div v-if="activeTab === 'categories'">
-        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
-          Manage Categories
-        </h1>
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Departments -->
-          <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">Add Department</h3>
-            <form @submit.prevent="handleAddDepartment" class="space-y-4">
-              <input
-                v-model="deptForm.name"
-                type="text"
-                placeholder="Department Name (e.g., Computer Science)"
-                required
-                class="form-input"
-              />
-              <input
-                v-model="deptForm.code"
-                type="text"
-                placeholder="Code (e.g., CSC)"
-                required
-                class="form-input"
-              />
-              <button
-                type="submit"
-                :disabled="usersStore.loading"
-                class="btn btn-primary w-full"
-              >
-                {{ usersStore.loading ? "Adding..." : "Add Department" }}
-              </button>
-            </form>
-            <div class="mt-6 space-y-2 max-h-64 overflow-y-auto">
-              <div
-                v-for="dept in usersStore.departments"
-                :key="dept.id"
-                class="flex justify-between items-center bg-gray-50 p-3 rounded-lg text-sm"
-              >
-                <span
-                  ><span class="font-bold text-primary-600 mr-2">{{ dept.code }}</span>
-                  {{ dept.name }}</span
-                >
-              </div>
-            </div>
+      <!-- ================= AUDIT LOGS TAB ================= -->
+      <div v-if="activeTab === 'logs'">
+        <div
+          class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
+        >
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-900">System Audit Logs</h1>
+          <span
+            class="text-sm text-gray-500 bg-white px-4 py-2 rounded-lg shadow-sm border border-gray-100"
+            >Showing last 100 actions</span
+          >
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          <div v-if="usersStore.loading" class="p-8 text-center text-gray-500">
+            Loading logs...
           </div>
-          <!-- Courses -->
-          <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-lg font-bold text-gray-900 mb-4">Add Course</h3>
-            <form @submit.prevent="handleAddCourse" class="space-y-4">
-              <input
-                v-model="courseForm.name"
-                type="text"
-                placeholder="Course Name"
-                required
-                class="form-input"
-              />
-              <input
-                v-model="courseForm.code"
-                type="text"
-                placeholder="Course Code (e.g., CSC101)"
-                required
-                class="form-input"
-              />
-              <select v-model="courseForm.department_id" required class="form-input">
-                <option value="">Select Department</option>
-                <option
-                  v-for="dept in usersStore.departments"
-                  :key="dept.id"
-                  :value="dept.id"
+          <div
+            v-else-if="usersStore.auditLogs.length === 0"
+            class="p-8 text-center text-gray-500"
+          >
+            No audit logs found.
+          </div>
+          <div v-else class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-gray-50 text-gray-500 uppercase text-xs">
+                <tr>
+                  <th class="px-6 py-3">User</th>
+                  <th class="px-6 py-3">Action</th>
+                  <th class="px-6 py-3">Details</th>
+                  <th class="px-6 py-3">Timestamp</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100">
+                <tr
+                  v-for="log in usersStore.auditLogs"
+                  :key="log.id"
+                  class="hover:bg-gray-50"
                 >
-                  {{ dept.name }}
-                </option>
-              </select>
-              <button
-                type="submit"
-                :disabled="usersStore.loading"
-                class="btn btn-primary w-full"
-              >
-                {{ usersStore.loading ? "Adding..." : "Add Course" }}
-              </button>
-            </form>
-            <div class="mt-6 space-y-2 max-h-64 overflow-y-auto">
-              <div
-                v-for="course in usersStore.courses"
-                :key="course.id"
-                class="flex justify-between items-center bg-gray-50 p-3 rounded-lg text-sm"
-              >
-                <span
-                  ><span class="font-bold text-primary-600 mr-2">{{ course.code }}</span>
-                  {{ course.name }}</span
-                >
-              </div>
-            </div>
+                  <td class="px-6 py-4">
+                    <p class="font-medium text-gray-900 text-sm">
+                      {{ log.full_name || "System" }}
+                    </p>
+                    <p class="text-xs text-gray-500 truncate">{{ log.email }}</p>
+                  </td>
+                  <td class="px-6 py-4">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    >
+                      {{ log.action }}
+                    </span>
+                  </td>
+                  <td class="px-6 py-4 text-gray-600 break-words">{{ log.details }}</td>
+                  <td class="px-6 py-4 text-xs text-gray-500">
+                    {{ new Date(log.created_at).toLocaleString() }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -444,7 +407,6 @@
 import { ref, computed, onMounted } from "vue";
 import { useMaterialsStore } from "../stores/materials";
 import { useUsersStore } from "../stores/users";
-import api from "../api/axios";
 import Sidebar from "../components/Sidebar.vue";
 
 const materialsStore = useMaterialsStore();
@@ -463,8 +425,6 @@ const uploadForm = ref({
   semester: "",
   file: null,
 });
-const deptForm = ref({ name: "", code: "" });
-const courseForm = ref({ name: "", code: "", department_id: "" });
 
 const filteredCourses = computed(() => {
   if (!uploadForm.value.department_id) return [];
@@ -478,9 +438,8 @@ async function loadUsersData() {
   if (usersStore.departments.length === 0) await usersStore.fetchDepartments();
 }
 
-async function loadCategoriesData() {
-  if (usersStore.departments.length === 0) await usersStore.fetchDepartments();
-  if (usersStore.courses.length === 0) await usersStore.fetchCourses();
+async function loadAuditLogs() {
+  if (usersStore.auditLogs.length === 0) await usersStore.fetchAuditLogs();
 }
 
 onMounted(async () => {
@@ -519,8 +478,7 @@ async function handleUpload() {
       file: null,
     };
   } catch (err) {
-    uploadError.value =
-      err.response?.data?.message || "Upload failed. Check console for details.";
+    uploadError.value = err.response?.data?.message || "Upload failed.";
   } finally {
     uploading.value = false;
   }
@@ -535,30 +493,8 @@ async function handleDeptChange(userId, deptId) {
   try {
     await usersStore.updateUserDepartment(userId, deptId);
   } catch (err) {
-    alert(
-      "Failed to update department: " + (err.response?.data?.message || "Unknown error")
-    );
-    await usersStore.fetchUsers(); // Revert UI on failure
-  }
-}
-
-async function handleAddDepartment() {
-  try {
-    await api.post("/admin/departments", deptForm.value);
-    deptForm.value = { name: "", code: "" };
-    await usersStore.fetchDepartments();
-  } catch (err) {
-    alert(err.response?.data?.message || "Failed to add department");
-  }
-}
-
-async function handleAddCourse() {
-  try {
-    await api.post("/admin/courses", courseForm.value);
-    courseForm.value = { name: "", code: "", department_id: "" };
-    await usersStore.fetchCourses();
-  } catch (err) {
-    alert(err.response?.data?.message || "Failed to add course");
+    alert("Failed to update department.");
+    await usersStore.fetchUsers();
   }
 }
 </script>

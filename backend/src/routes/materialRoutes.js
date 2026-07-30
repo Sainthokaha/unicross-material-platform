@@ -5,7 +5,7 @@ const path = require('path');
 const fs = require('fs');
 
 const { verifyToken } = require('../middleware/auth');
-const { uploadMaterial, getMaterials, approveMaterial, rejectMaterial, downloadMaterial, getCategories } = require('../controllers/materialController');
+const { uploadMaterial, getMaterials, approveMaterial, rejectMaterial, downloadMaterial } = require('../controllers/materialController');
 
 const uploadDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
@@ -25,10 +25,8 @@ const upload = multer({
   }
 });
 
-// ✅ THIS IS THE EXACT ROUTE THE FRONTEND CALLS
 router.post('/', verifyToken, upload.single('file'), uploadMaterial);
 router.get('/', verifyToken, getMaterials);
-router.get('/categories', verifyToken, getCategories);
 router.patch('/:id/approve', verifyToken, approveMaterial);
 router.patch('/:id/reject', verifyToken, rejectMaterial);
 router.get('/:id/download', verifyToken, downloadMaterial);
