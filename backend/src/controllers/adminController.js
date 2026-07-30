@@ -12,6 +12,39 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+// ✅ ADDED: Add User Function
+const addUser = async (req, res) => {
+  try {
+    const { full_name, email, password, role, matric_number, staff_id, department_id } = req.body;
+    
+    if (!full_name || !email || !password || !role) {
+      return res.status(400).json({ success: false, message: 'Full name, email, password, and role are required' });
+    }
+
+    const validRoles = ['student', 'lecturer', 'admin'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
+    }
+
+    const [existing] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+    if (existing.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email already exists' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+    const [result] = await db.query(
+      `INSERT INTO users (full_name, email, password_hash, role, matric_number, staff_id, department_id, is_active, email_verified) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1)`,
+      [full_name, email, password_hash, role, matric_number || null, staff_id || null, department_id || null]
+    );
+    
+    res.status(201).json({ success: true, message: 'User created successfully', id: result.insertId });
+  } catch (error) {
+    console.error('❌ Error adding user:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 const toggleUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
@@ -152,9 +185,10 @@ const getAuditLogs = async (req, res) => {
   }
 };
 
-// ✅ FOOLPROOF EXPORT: This guarantees every function is exported correctly
+// ✅ FOOLPROOF EXPORT (Includes addUser)
 module.exports = {
   getAllUsers,
+  addUser, // ✅ ADDED HERE
   toggleUserStatus,
   updateUserDepartment,
   getAllDepartments,

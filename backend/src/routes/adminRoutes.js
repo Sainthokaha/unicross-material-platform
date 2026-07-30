@@ -8,6 +8,7 @@ router.use(verifyToken);
 
 // Users
 router.get('/users', adminController.getAllUsers);
+router.post('/users', verifyAdmin, adminController.addUser); // ✅ ADDED THIS LINE
 router.patch('/users/:id/status', verifyAdmin, adminController.toggleUserStatus);
 router.patch('/users/:id/department', verifyAdmin, adminController.updateUserDepartment);
 
