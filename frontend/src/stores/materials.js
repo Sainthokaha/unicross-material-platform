@@ -12,7 +12,7 @@ export const useMaterialsStore = defineStore('materials', () => {
       const response = await api.get('/materials')
       materials.value = response.data.materials || []
     } catch (err) {
-      console.error(' Fetch Materials Error:', err)
+      console.error('❌ Fetch Materials Error:', err)
     } finally {
       loading.value = false
     }
@@ -21,6 +21,8 @@ export const useMaterialsStore = defineStore('materials', () => {
   async function uploadMaterial(formData) {
     loading.value = true
     try {
+      // ✅ DO NOT add { headers: { 'Content-Type': 'multipart/form-data' } } here.
+      // Axios handles it automatically when it sees the FormData object.
       await api.post('/materials', formData)
       await fetchMaterials()
     } catch (err) {
