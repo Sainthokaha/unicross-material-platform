@@ -7,23 +7,17 @@ const fs = require('fs');
 // ==========================================
 const uploadMaterial = async (req, res) => {
   try {
-    // Debug logging to help us see exactly what's happening
-    console.log('📥 Upload Request Body:', req.body);
-    console.log('📁 Uploaded File:', req.file ? req.file.filename : 'NO FILE');
-    console.log('👤 User ID:', req.user?.id);
-
     const { title, description, course_id, semester } = req.body;
     
     if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded. Please select a file.' });
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
-
     if (!title || !course_id || !semester) {
-      return res.status(400).json({ success: false, message: 'Title, course, semester, and file are required' });
+      return res.status(400).json({ success: false, message: 'Title, course, and semester are required' });
     }
 
     const uploaded_by = req.user.id;
-    const file_path = req.file.filename; // Stores just the filename (getMaterials adds the /uploads/ prefix)
+    const file_path = req.file.filename;
     const original_name = req.file.originalname;
 
     const [result] = await pool.query(
@@ -32,12 +26,15 @@ const uploadMaterial = async (req, res) => {
       [title, description || '', course_id, semester, file_path, original_name, uploaded_by]
     );
 
-    await pool.query(
-      'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
-      [uploaded_by, 'MATERIAL_UPLOAD', 'materials', result.insertId, `Uploaded: ${title}`]
-    );
-
-    console.log(`✅ Material uploaded successfully. ID: ${result.insertId}`);
+    // Optional: Audit log (wrapped in try/catch so it doesn't fail the upload if the log table is missing)
+    try {
+      await pool.query(
+        'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+        [uploaded_by, 'MATERIAL_UPLOAD', 'materials', result.insertId, `Uploaded: ${title}`]
+      );
+    } catch (logErr) {
+      console.error('Audit log error:', logErr); 
+    }
 
     res.status(201).json({ 
       success: true, 
@@ -45,18 +42,18 @@ const uploadMaterial = async (req, res) => {
       id: result.insertId 
     });
   } catch (err) {
-    console.error('❌ CRITICAL Upload error:', err);
+    console.error('❌ Upload error:', err);
     res.status(500).json({ success: false, message: 'Failed to upload material: ' + err.message });
   }
 };
 
 // ==========================================
-// 2. GET MATERIALS (With Department Name)
+// 2. GET MATERIALS
 // ==========================================
 const getMaterials = async (req, res) => {
   try {
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const limit = parseInt(req.query.limit) || 50; // Increased default limit for admin view
     const offset = (page - 1) * limit;
 
     let query = `
@@ -70,6 +67,7 @@ const getMaterials = async (req, res) => {
     const params = [];
     const conditions = [];
 
+    // Role-based filtering
     if (req.user.role === 'lecturer') {
       conditions.push('m.uploaded_by = ?');
       params.push(req.user.id);
@@ -83,6 +81,7 @@ const getMaterials = async (req, res) => {
       }
     }
 
+    // Search and filter params
     const { search, course_id, semester, date_from, date_to } = req.query;
 
     if (search) {
@@ -110,8 +109,12 @@ const getMaterials = async (req, res) => {
     const dataQuery = `${query} ${whereClause} ORDER BY m.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
     const [materials] = await pool.query(dataQuery, params);
 
+    // Format file URL for frontend
     const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const formatted = materials.map(m => ({ ...m, file_url: `${baseUrl}/uploads/${m.file_path}` }));
+    const formatted = materials.map(m => ({ 
+      ...m, 
+      file_url: `${baseUrl}/uploads/${m.file_path}` 
+    }));
     
     res.json({
       success: true,
@@ -140,10 +143,14 @@ const approveMaterial = async (req, res) => {
     
     if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Material not found' });
 
-    await pool.query(
-      'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
-      [req.user.id, 'MATERIAL_APPROVE', 'materials', id, 'Material approved by admin']
-    );
+    try {
+      await pool.query(
+        'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+        [req.user.id, 'MATERIAL_APPROVE', 'materials', id, 'Material approved by admin']
+      );
+    } catch (logErr) {
+      console.error('Audit log error:', logErr);
+    }
 
     res.json({ success: true, message: 'Material approved successfully' });
   } catch (err) {
@@ -160,14 +167,25 @@ const rejectMaterial = async (req, res) => {
     const { id } = req.params;
     const { reason } = req.body;
 
-    const [result] = await pool.query("UPDATE materials SET status = 'rejected', rejection_reason = ? WHERE id = ?", [reason, id]);
+    if (!reason) {
+      return res.status(400).json({ success: false, message: 'Rejection reason is required' });
+    }
+
+    const [result] = await pool.query(
+      "UPDATE materials SET status = 'rejected', rejection_reason = ? WHERE id = ?", 
+      [reason, id]
+    );
     
     if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Material not found' });
 
-    await pool.query(
-      'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
-      [req.user.id, 'MATERIAL_REJECT', 'materials', id, `Rejected: ${reason}`]
-    );
+    try {
+      await pool.query(
+        'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+        [req.user.id, 'MATERIAL_REJECT', 'materials', id, `Rejected: ${reason}`]
+      );
+    } catch (logErr) {
+      console.error('Audit log error:', logErr);
+    }
 
     res.json({ success: true, message: 'Material rejected successfully' });
   } catch (err) {
@@ -195,10 +213,14 @@ const downloadMaterial = async (req, res) => {
 
     await pool.query('UPDATE materials SET download_count = download_count + 1 WHERE id = ?', [id]);
 
-    await pool.query(
-      'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
-      [req.user.id, 'MATERIAL_DOWNLOAD', 'materials', id, `Downloaded: ${material.title}`]
-    );
+    try {
+      await pool.query(
+        'INSERT INTO audit_logs (user_id, action, entity_type, entity_id, details) VALUES (?, ?, ?, ?, ?)',
+        [req.user.id, 'MATERIAL_DOWNLOAD', 'materials', id, `Downloaded: ${material.title}`]
+      );
+    } catch (logErr) {
+      console.error('Audit log error:', logErr);
+    }
 
     res.download(filePath, material.original_name);
   } catch (err) {

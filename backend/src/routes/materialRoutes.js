@@ -2,71 +2,31 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const fs = require('fs'); // ✅ Added to ensure directory exists
+const fs = require('fs');
 
 const { verifyToken } = require('../middleware/auth');
-const { 
-  uploadMaterial, 
-  getMaterials, 
-  approveMaterial, 
-  rejectMaterial, 
-  downloadMaterial,
-  getCategories 
-} = require('../controllers/materialController');
+const { uploadMaterial, getMaterials, approveMaterial, rejectMaterial, downloadMaterial, getCategories } = require('../controllers/materialController');
 
-// ✅ Ensure uploads directory exists with an ABSOLUTE path (Crucial for Render)
 const uploadDir = path.join(__dirname, '../../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
-// ✅ Multer setup with 50MB file size limit and absolute destination
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir); // ✅ Uses absolute path
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'material-' + uniqueSuffix + path.extname(file.originalname));
-  }
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => cb(null, 'material-' + Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname))
 });
 
 const upload = multer({ 
   storage,
-  limits: { 
-    fileSize: 50 * 1024 * 1024 // ✅ 50MB limit
-  },
+  limits: { fileSize: 50 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = /pdf|doc|docx|ppt|pptx|xls|xlsx|jpg|jpeg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-    
-    if (extname && mimetype) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, and images are allowed.'));
-    }
+    const allowed = /pdf|doc|docx|ppt|pptx|xls|xlsx|jpg|jpeg|png|gif/;
+    if (allowed.test(path.extname(file.originalname).toLowerCase()) && allowed.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Invalid file type.'));
   }
 });
 
-// Error handling middleware for file size
-const handleMulterError = (err, req, res, next) => {
-  if (err instanceof multer.MulterError) {
-    if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ success: false, message: 'File size exceeds 50MB limit. Please upload a smaller file.' });
-    }
-  }
-  if (err) {
-    return res.status(400).json({ success: false, message: err.message });
-  }
-  next();
-};
-
-// ==================== ROUTES ====================
-
-// ✅ CRITICAL FIX: Changed from '/upload' to '/' to match frontend POST request
-router.post('/', verifyToken, upload.single('file'), handleMulterError, uploadMaterial);
-
+// ✅ THIS IS THE EXACT ROUTE THE FRONTEND CALLS
+router.post('/', verifyToken, upload.single('file'), uploadMaterial);
 router.get('/', verifyToken, getMaterials);
 router.get('/categories', verifyToken, getCategories);
 router.patch('/:id/approve', verifyToken, approveMaterial);
