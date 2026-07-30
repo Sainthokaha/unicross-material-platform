@@ -101,38 +101,30 @@
                     </span>
                   </td>
                   
-                  <!-- ✅ UPDATED: Context-Aware Toggle Actions -->
+                  <!-- ✅ CLEAN ACTIONS: Only Icons, No Text Buttons -->
                   <td class="px-6 py-4">
-                    <div class="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-                      
-                      <!-- 1. Status Badge -->
-                      <span :class="['px-2.5 py-1 rounded-full text-xs font-bold flex items-center gap-1.5', 
-                        m.status === 'approved' ? 'bg-green-100 text-green-800' : 
-                        m.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800']">
-                        {{ m.status === 'pending' ? 'PENDING' : m.status === 'approved' ? 'APPROVED' : 'REJECTED' }}
-                      </span>
-
-                      <!-- 2. Toggle Icons -->
-                      <div class="flex items-center gap-2 border-l border-gray-200 pl-3">
+                    <div class="flex items-center gap-3">
+                      <!-- Action Icons Container -->
+                      <div class="flex items-center gap-2 pl-2 border-l border-gray-200">
                         
-                        <!-- GREEN CHECK: Approve or Override -->
+                        <!-- GREEN CHECK (Approve/Override) -->
                         <button 
                           v-if="m.status !== 'approved'" 
                           @click="materialsStore.approveMaterial(m.id)"
-                          class="group flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-600 hover:text-white hover:shadow-md transition-all duration-200"
-                          :title="m.status === 'rejected' ? 'Override and Approve' : 'Approve Material'"
+                          class="flex items-center justify-center w-8 h-8 rounded-full bg-green-50 text-green-600 hover:bg-green-600 hover:text-white hover:shadow-md transition-all duration-200"
+                          title="Approve Material"
                         >
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"></path>
                           </svg>
                         </button>
 
-                        <!-- RED X: Reject or Reverse -->
+                        <!-- RED X (Reject/Reverse) -->
                         <button 
                           v-if="m.status !== 'rejected'" 
                           @click="handleReject(m.id)"
-                          class="group flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white hover:shadow-md transition-all duration-200"
-                          :title="m.status === 'approved' ? 'Reverse to Rejected' : 'Reject Material'"
+                          class="flex items-center justify-center w-8 h-8 rounded-full bg-red-50 text-red-600 hover:bg-red-600 hover:text-white hover:shadow-md transition-all duration-200"
+                          title="Reject Material"
                         >
                           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12"></path>
@@ -142,7 +134,7 @@
                       </div>
                     </div>
                     
-                    <!-- 3. Rejection Reason -->
+                    <!-- Rejection Reason (Context) -->
                     <p v-if="m.status === 'rejected' && m.rejection_reason" class="text-xs text-red-500 mt-2 italic flex items-center gap-1" :title="m.rejection_reason">
                       <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                       {{ m.rejection_reason }}
@@ -236,7 +228,6 @@
                   <td class="px-6 py-4 font-medium text-gray-900">{{ user.full_name }}</td>
                   <td class="px-6 py-4 text-gray-600">{{ user.email }}</td>
                   
-                  <!-- Inline Role Dropdown -->
                   <td class="px-6 py-4">
                     <select 
                       :value="user.role" 
@@ -249,7 +240,6 @@
                     </select>
                   </td>
 
-                  <!-- Inline Department Dropdown -->
                   <td class="px-6 py-4">
                     <select 
                       :value="user.department_id || ''" 
@@ -325,7 +315,6 @@
       <div v-if="activeTab === 'categories'">
         <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Manage Categories</h1>
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <!-- Departments -->
           <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <h3 class="text-lg font-bold text-gray-900 mb-4">Add Department</h3>
             <form @submit.prevent="handleAddDepartment" class="space-y-4">
@@ -340,7 +329,6 @@
               </div>
             </div>
           </div>
-          <!-- Courses -->
           <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <h3 class="text-lg font-bold text-gray-900 mb-4">Add Course</h3>
             <form @submit.prevent="handleAddCourse" class="space-y-4">
@@ -470,7 +458,6 @@ async function handleReject(id) {
   if (reason) await materialsStore.rejectMaterial(id, reason);
 }
 
-// ✅ Smart Role Transition Handler
 async function handleRoleChange(userId, newRole) {
   let extraIdentifiers = {};
   
@@ -481,7 +468,7 @@ async function handleRoleChange(userId, newRole) {
       "(Leave blank to set as PENDING)"
     );
     if (matric === null) {
-      await usersStore.fetchUsers(); // Revert UI if cancelled
+      await usersStore.fetchUsers(); 
       return; 
     }
     extraIdentifiers.matric_number = matric.trim() === '' ? null : matric.trim();
@@ -493,7 +480,7 @@ async function handleRoleChange(userId, newRole) {
       "(Leave blank to set as PENDING)"
     );
     if (staffId === null) {
-      await usersStore.fetchUsers(); // Revert UI if cancelled
+      await usersStore.fetchUsers(); 
       return;
     }
     extraIdentifiers.staff_id = staffId.trim() === '' ? null : staffId.trim();
