@@ -192,7 +192,7 @@ exports.changePassword = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
-    console.error('❌ Change Password Error:', error);
+    console.error(' Change Password Error:', error);
     res.status(500).json({ success: false, message: 'Server error during password change' });
   }
 };
@@ -258,7 +258,7 @@ exports.verifyEmail = async (req, res) => {
 // ==================== GET CURRENT USER (ME) ====================
 exports.getMe = async (req, res) => {
   try {
-    const userId = req.user.id; // Attached by verifyToken middleware
+    const userId = req.user.id;
 
     const [users] = await db.query(
       `SELECT u.id, u.full_name, u.email, u.role, u.matric_number, u.staff_id, u.profile_image, u.is_active, u.email_verified, u.department_id, d.name as department_name 
@@ -277,4 +277,36 @@ exports.getMe = async (req, res) => {
     console.error('❌ Get Me Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
+};
+
+// ==================== UPDATE PROFILE (NAME ONLY) ====================
+exports.updateProfile = async (req, res) => {
+  try {
+    const { full_name } = req.body;
+    const userId = req.user.id;
+
+    if (!full_name || full_name.trim() === '') {
+      return res.status(400).json({ success: false, message: 'Full name is required' });
+    }
+
+    await db.query('UPDATE users SET full_name = ? WHERE id = ?', [full_name.trim(), userId]);
+
+    res.status(200).json({ success: true, message: 'Profile updated successfully' });
+  } catch (error) {
+    console.error(' Update Profile Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ✅ FOOLPROOF EXPORT (Includes updateProfile)
+module.exports = {
+  register,
+  login,
+  forgotPassword,
+  resetPassword,
+  changePassword,
+  updateProfileImage,
+  verifyEmail,
+  getMe,
+  updateProfile // ✅ ADDED HERE
 };

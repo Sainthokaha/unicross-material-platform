@@ -5,9 +5,9 @@ const path = require('path');
 const fs = require('fs');
 
 const { verifyToken } = require('../middleware/auth');
-const authController = require('../controllers/authController'); // ✅ Import the whole controller
+const authController = require('../controllers/authController');
 
-// Ensure uploads directory exists (Crucial for Render deployment)
+// Ensure uploads directory exists with an ABSOLUTE path (Crucial for Render)
 const uploadDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
@@ -16,7 +16,7 @@ if (!fs.existsSync(uploadDir)) {
 // Multer setup for profile image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadDir); // ✅ Uses absolute path
+    cb(null, uploadDir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
@@ -27,7 +27,6 @@ const storage = multer.diskStorage({
 const upload = multer({ 
   storage,
   fileFilter: (req, file, cb) => {
-    // ✅ Added 'webp' to support modern mobile image formats
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
@@ -49,9 +48,8 @@ router.post('/reset-password', authController.resetPassword);
 router.get('/verify-email/:token', authController.verifyEmail);
 
 // ==================== PROTECTED ROUTES ====================
-// ✅ THIS IS THE CRITICAL FIX FOR THE 404 ERROR
-router.get('/me', verifyToken, authController.getMe); 
-
+router.get('/me', verifyToken, authController.getMe);
+router.patch('/profile', verifyToken, authController.updateProfile); 
 router.post('/change-password', verifyToken, authController.changePassword);
 router.post('/profile-image', verifyToken, upload.single('profile_image'), authController.updateProfileImage);
 

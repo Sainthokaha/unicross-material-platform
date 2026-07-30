@@ -1,6 +1,5 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Sidebar -->
     <Sidebar>
       <template #navigation>
         <router-link
@@ -20,14 +19,12 @@
       </template>
     </Sidebar>
 
-    <!-- Main Content -->
     <main class="pt-20 md:pt-16 md:ml-72 p-4 md:p-8 min-h-screen">
       <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-6">My Profile</h1>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Left Column: Profile Picture & Basic Info -->
+        <!-- Left Column: Profile Picture -->
         <div class="lg:col-span-1 space-y-6">
-          <!-- Profile Card -->
           <div
             class="bg-white p-6 rounded-lg shadow-sm border border-gray-100 text-center"
           >
@@ -46,12 +43,11 @@
             </div>
 
             <h2 class="mt-4 text-xl font-bold text-gray-900">
-              {{ authStore.user?.full_name || authStore.user?.name || "User" }}
+              {{ authStore.user?.full_name || "User" }}
             </h2>
             <p class="text-sm text-gray-500 capitalize">{{ authStore.user?.role }}</p>
             <p class="text-xs text-gray-400 mt-1">{{ authStore.user?.email }}</p>
 
-            <!-- Upload Image Form -->
             <form @submit.prevent="handleImageUpload" class="mt-6">
               <input
                 type="file"
@@ -82,7 +78,119 @@
 
         <!-- Right Column: Details & Password -->
         <div class="lg:col-span-2 space-y-6">
-          <!-- Academic Details -->
+          <!-- ✅ NEW: Personal Information (Editable Name) -->
+          <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <svg
+                class="w-5 h-5 text-primary-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                ></path>
+              </svg>
+              Personal Information
+            </h3>
+
+            <div class="space-y-4">
+              <!-- Full Name (Editable) -->
+              <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
+                <div class="flex justify-between items-center mb-1">
+                  <p class="text-xs font-bold text-gray-500 uppercase">Full Name</p>
+                  <button
+                    v-if="!isEditingName"
+                    @click="startEditingName"
+                    class="text-xs text-primary-600 hover:text-primary-800 font-bold flex items-center gap-1"
+                  >
+                    <svg
+                      class="w-3.5 h-3.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                      ></path>
+                    </svg>
+                    Edit
+                  </button>
+                </div>
+
+                <div v-if="!isEditingName">
+                  <p class="text-sm font-semibold text-gray-900">
+                    {{ authStore.user?.full_name || "Not set" }}
+                  </p>
+                </div>
+
+                <div v-else class="flex flex-col sm:flex-row gap-2">
+                  <input
+                    v-model="editNameForm.full_name"
+                    type="text"
+                    class="form-input flex-1"
+                    placeholder="Enter your full name"
+                  />
+                  <div class="flex gap-2">
+                    <button
+                      @click="saveName"
+                      :disabled="savingName"
+                      class="bg-green-600 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-green-700 transition"
+                    >
+                      {{ savingName ? "Saving..." : "Save" }}
+                    </button>
+                    <button
+                      @click="cancelEditingName"
+                      class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-bold hover:bg-gray-300 transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+                <p
+                  v-if="nameMessage"
+                  :class="['text-xs mt-1', nameError ? 'text-red-500' : 'text-green-500']"
+                >
+                  {{ nameMessage }}
+                </p>
+              </div>
+
+              <!-- Email (Read-Only) -->
+              <div
+                class="bg-gray-50 p-4 rounded-lg border border-gray-100 flex justify-between items-center"
+              >
+                <div>
+                  <p class="text-xs font-bold text-gray-500 uppercase mb-1">
+                    Email Address
+                  </p>
+                  <p class="text-sm font-semibold text-gray-900">
+                    {{ authStore.user?.email || "Not set" }}
+                  </p>
+                </div>
+                <svg
+                  class="w-4 h-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+
+          <!-- Academic Details (Read-Only) -->
           <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <h3 class="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               <svg
@@ -110,33 +218,80 @@
               <!-- Matric Number (Only for Students) -->
               <div
                 v-if="authStore.user?.role === 'student'"
-                class="bg-gray-50 p-4 rounded-lg border border-gray-100"
+                class="bg-gray-50 p-4 rounded-lg border border-gray-100 flex justify-between items-center"
               >
-                <p class="text-xs font-bold text-gray-500 uppercase mb-1">
-                  Matriculation No.
-                </p>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ authStore.user?.matric_number || "Not Assigned" }}
-                </p>
+                <div>
+                  <p class="text-xs font-bold text-gray-500 uppercase mb-1">
+                    Matriculation No.
+                  </p>
+                  <p class="text-sm font-semibold text-gray-900">
+                    {{ authStore.user?.matric_number || "Not Assigned" }}
+                  </p>
+                </div>
+                <svg
+                  class="w-4 h-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  ></path>
+                </svg>
               </div>
 
               <!-- Staff ID (Only for Lecturers/Admins) -->
               <div
                 v-if="authStore.user?.role !== 'student'"
-                class="bg-gray-50 p-4 rounded-lg border border-gray-100"
+                class="bg-gray-50 p-4 rounded-lg border border-gray-100 flex justify-between items-center"
               >
-                <p class="text-xs font-bold text-gray-500 uppercase mb-1">Staff ID</p>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ authStore.user?.staff_id || "Not Assigned" }}
-                </p>
+                <div>
+                  <p class="text-xs font-bold text-gray-500 uppercase mb-1">Staff ID</p>
+                  <p class="text-sm font-semibold text-gray-900">
+                    {{ authStore.user?.staff_id || "Not Assigned" }}
+                  </p>
+                </div>
+                <svg
+                  class="w-4 h-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  ></path>
+                </svg>
               </div>
 
               <!-- Department -->
-              <div class="bg-gray-50 p-4 rounded-lg border border-gray-100">
-                <p class="text-xs font-bold text-gray-500 uppercase mb-1">Department</p>
-                <p class="text-sm font-semibold text-gray-900">
-                  {{ authStore.user?.department_name || "Unassigned" }}
-                </p>
+              <div
+                class="bg-gray-50 p-4 rounded-lg border border-gray-100 flex justify-between items-center"
+              >
+                <div>
+                  <p class="text-xs font-bold text-gray-500 uppercase mb-1">Department</p>
+                  <p class="text-sm font-semibold text-gray-900">
+                    {{ authStore.user?.department_name || "Unassigned" }}
+                  </p>
+                </div>
+                <svg
+                  class="w-4 h-4 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
+                  ></path>
+                </svg>
               </div>
             </div>
           </div>
@@ -215,10 +370,18 @@ const authStore = useAuthStore();
 const fileInput = ref(null);
 const imageMessage = ref("");
 const imageError = ref(false);
+
 const passwordForm = ref({ currentPassword: "", newPassword: "" });
 const passwordMessage = ref("");
 const passwordError = ref(false);
 const changingPassword = ref(false);
+
+// ✅ NEW: Name Editing State
+const isEditingName = ref(false);
+const savingName = ref(false);
+const nameMessage = ref("");
+const nameError = ref(false);
+const editNameForm = ref({ full_name: "" });
 
 const dashboardPath = computed(() => {
   const role = authStore.user?.role;
@@ -229,28 +392,37 @@ const dashboardPath = computed(() => {
 });
 
 const userInitials = computed(() => {
-  const name = authStore.user?.full_name || authStore.user?.name || "User";
-  return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
+  const name = authStore.user?.full_name || "User";
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 });
 
 const getProfileImageUrl = (imagePath) => {
   if (!imagePath) return null;
-  if (imagePath.startsWith('http')) return imagePath;
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-  return `${apiUrl.replace('/api', '')}${imagePath}?t=${Date.now()}`;
+  if (imagePath.startsWith("http")) return imagePath;
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  return `${apiUrl.replace("/api", "")}${imagePath}?t=${Date.now()}`;
 };
+
+function handleImageError() {
+  console.warn("Profile image failed to load");
+}
 
 function handleFileChange(e) {
   const file = e.target.files[0];
   if (file) {
-    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+    if (!["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(file.type)) {
       imageError.value = true;
-      imageMessage.value = 'Please select a valid image (JPG, PNG, WebP)';
+      imageMessage.value = "Please select a valid image (JPG, PNG, WebP)";
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
       imageError.value = true;
-      imageMessage.value = 'Image must be less than 5MB';
+      imageMessage.value = "Image must be less than 5MB";
       return;
     }
     handleImageUpload(file);
@@ -264,11 +436,15 @@ async function handleImageUpload(file) {
   formData.append("profile_image", file);
 
   try {
-    const res = await api.post("/auth/profile-image", formData, { headers: { "Content-Type": "multipart/form-data" } });
+    const res = await api.post("/auth/profile-image", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
     authStore.user.profile_image = res.data.profileImage;
-    localStorage.setItem('user', JSON.stringify(authStore.user)); // Sync localStorage
+    localStorage.setItem("user", JSON.stringify(authStore.user));
     imageMessage.value = "Profile picture updated!";
-    setTimeout(() => { imageMessage.value = ""; }, 3000);
+    setTimeout(() => {
+      imageMessage.value = "";
+    }, 3000);
   } catch (err) {
     imageError.value = true;
     imageMessage.value = err.response?.data?.message || "Failed to upload";
@@ -291,8 +467,54 @@ async function handleChangePassword() {
   }
 }
 
-// ✅ CRITICAL: Fetch fresh data from DB every time this page loads
+// ✅ NEW: Name Editing Functions
+function startEditingName() {
+  editNameForm.value.full_name = authStore.user?.full_name || "";
+  nameMessage.value = "";
+  isEditingName.value = true;
+}
+
+function cancelEditingName() {
+  isEditingName.value = false;
+  nameMessage.value = "";
+}
+
+async function saveName() {
+  if (!editNameForm.value.full_name.trim()) {
+    nameError.value = true;
+    nameMessage.value = "Name cannot be empty.";
+    return;
+  }
+
+  savingName.value = true;
+  nameError.value = false;
+  nameMessage.value = "";
+
+  try {
+    await authStore.updateProfile({ full_name: editNameForm.value.full_name });
+    nameMessage.value = "Name updated successfully!";
+    setTimeout(() => {
+      isEditingName.value = false;
+      nameMessage.value = "";
+    }, 2000);
+  } catch (err) {
+    nameError.value = true;
+    nameMessage.value = err.response?.data?.message || "Failed to update name.";
+  } finally {
+    savingName.value = false;
+  }
+}
+
+// Fetch fresh data from DB on load
 onMounted(async () => {
-  await authStore.refreshProfile();
+  try {
+    const response = await api.get("/auth/me");
+    if (response.data && response.data.data) {
+      authStore.user = response.data.data;
+      authStore.user = { ...authStore.user };
+    }
+  } catch (err) {
+    console.error("Failed to fetch fresh profile data:", err);
+  }
 });
 </script>
