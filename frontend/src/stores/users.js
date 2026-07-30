@@ -95,10 +95,24 @@ export const useUsersStore = defineStore('users', () => {
     await fetchCourses()
   }
 
+  async function updateUserRole(userId, newRole) {
+    loading.value = true
+    try {
+      await api.patch(`/admin/users/${userId}/role`, { role: newRole })
+      const user = users.value.find(u => u.id === userId)
+      if (user) user.role = newRole
+    } catch (err) { 
+      console.error('❌ Update Role Error:', err)
+      throw err 
+    } finally { 
+      loading.value = false 
+    }
+  }
+
   return { 
     users, departments, courses, auditLogs, loading,
     fetchUsers, fetchDepartments, fetchCourses, fetchAuditLogs,
     createUser, toggleUserStatus, updateUserDepartment,
-    addDepartment, deleteDepartment, addCourse, deleteCourse
+    addDepartment, deleteDepartment, addCourse, deleteCourse, updateUserRole
   }
 })

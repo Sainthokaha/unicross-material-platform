@@ -94,6 +94,25 @@ const updateUserDepartment = async (req, res) => {
   }
 };
 
+// ==================== UPDATE USER ROLE ====================
+const updateUserRole = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role } = req.body;
+    
+    const validRoles = ['student', 'lecturer', 'admin'];
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ success: false, message: 'Invalid role' });
+    }
+
+    await db.query('UPDATE users SET role = ? WHERE id = ?', [role, id]);
+    res.status(200).json({ success: true, message: 'User role updated successfully' });
+  } catch (error) {
+    console.error('❌ Error updating user role:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // ==================== DEPARTMENTS ====================
 const getAllDepartments = async (req, res) => {
   try {
@@ -191,6 +210,7 @@ module.exports = {
   addUser, // ✅ ADDED HERE
   toggleUserStatus,
   updateUserDepartment,
+  updateUserRole,
   getAllDepartments,
   addDepartment,
   deleteDepartment,
