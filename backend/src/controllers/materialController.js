@@ -2,7 +2,6 @@ const pool = require('../config/db');
 const path = require('path');
 const fs = require('fs');
 
-// 1. UPLOAD MATERIAL
 const uploadMaterial = async (req, res) => {
   try {
     const { title, description, course_id, semester } = req.body;
@@ -26,7 +25,6 @@ const uploadMaterial = async (req, res) => {
   }
 };
 
-// 2. GET MATERIALS
 const getMaterials = async (req, res) => {
   try {
     let query = `
@@ -67,7 +65,6 @@ const getMaterials = async (req, res) => {
   }
 };
 
-// 3. APPROVE MATERIAL
 const approveMaterial = async (req, res) => {
   try {
     const { id } = req.params;
@@ -80,7 +77,6 @@ const approveMaterial = async (req, res) => {
   }
 };
 
-// 4. REJECT MATERIAL
 const rejectMaterial = async (req, res) => {
   try {
     const { id } = req.params;
@@ -96,7 +92,6 @@ const rejectMaterial = async (req, res) => {
   }
 };
 
-// 5. DOWNLOAD MATERIAL
 const downloadMaterial = async (req, res) => {
   try {
     const { id } = req.params;

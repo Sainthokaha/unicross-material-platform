@@ -65,6 +65,28 @@
           </svg>
           Audit Logs
         </button>
+        <button
+          @click="
+            activeTab = 'categories';
+            loadCategoriesData();
+          "
+          :class="[
+            'w-full text-left px-4 py-3 rounded-lg transition flex items-center gap-3',
+            activeTab === 'categories'
+              ? 'bg-primary-600 text-white'
+              : 'text-gray-300 hover:bg-gray-800',
+          ]"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+            ></path>
+          </svg>
+          Categories
+        </button>
       </template>
     </Sidebar>
 
@@ -399,6 +421,118 @@
           </div>
         </div>
       </div>
+
+      <!-- ================= CATEGORIES TAB ================= -->
+      <div v-if="activeTab === 'categories'">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-6">
+          Manage Categories
+        </h1>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Departments -->
+          <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Add Department</h3>
+            <form @submit.prevent="handleAddDepartment" class="space-y-4">
+              <input
+                v-model="deptForm.name"
+                type="text"
+                placeholder="Department Name (e.g., Computer Science)"
+                required
+                class="form-input"
+              />
+              <input
+                v-model="deptForm.code"
+                type="text"
+                placeholder="Code (e.g., CSC)"
+                required
+                class="form-input"
+              />
+              <button
+                type="submit"
+                :disabled="usersStore.loading"
+                class="btn btn-primary w-full"
+              >
+                {{ usersStore.loading ? "Adding..." : "Add Department" }}
+              </button>
+            </form>
+            <div class="mt-6 space-y-2 max-h-64 overflow-y-auto">
+              <div
+                v-for="dept in usersStore.departments"
+                :key="dept.id"
+                class="flex justify-between items-center bg-gray-50 p-3 rounded-lg text-sm"
+              >
+                <span
+                  ><span class="font-bold text-primary-600 mr-2">{{ dept.code }}</span>
+                  {{ dept.name }}</span
+                >
+                <button
+                  @click="handleDeleteDepartment(dept.id)"
+                  class="text-red-500 hover:text-red-700 text-xs font-bold"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Courses -->
+          <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Add Course</h3>
+            <form @submit.prevent="handleAddCourse" class="space-y-4">
+              <input
+                v-model="courseForm.name"
+                type="text"
+                placeholder="Course Name"
+                required
+                class="form-input"
+              />
+              <input
+                v-model="courseForm.code"
+                type="text"
+                placeholder="Course Code (e.g., CSC101)"
+                required
+                class="form-input"
+              />
+              <select v-model="courseForm.department_id" required class="form-input">
+                <option value="">Select Department</option>
+                <option
+                  v-for="dept in usersStore.departments"
+                  :key="dept.id"
+                  :value="dept.id"
+                >
+                  {{ dept.name }}
+                </option>
+              </select>
+              <button
+                type="submit"
+                :disabled="usersStore.loading"
+                class="btn btn-primary w-full"
+              >
+                {{ usersStore.loading ? "Adding..." : "Add Course" }}
+              </button>
+            </form>
+            <div class="mt-6 space-y-2 max-h-64 overflow-y-auto">
+              <div
+                v-for="course in usersStore.courses"
+                :key="course.id"
+                class="flex justify-between items-center bg-gray-50 p-3 rounded-lg text-sm"
+              >
+                <span
+                  ><span class="font-bold text-primary-600 mr-2">{{ course.code }}</span>
+                  {{ course.name }}
+                  <span class="text-gray-400 text-xs"
+                    >({{ course.department_name }})</span
+                  ></span
+                >
+                <button
+                  @click="handleDeleteCourse(course.id)"
+                  class="text-red-500 hover:text-red-700 text-xs font-bold"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   </div>
 </template>
@@ -425,6 +559,8 @@ const uploadForm = ref({
   semester: "",
   file: null,
 });
+const deptForm = ref({ name: "", code: "" });
+const courseForm = ref({ name: "", code: "", department_id: "" });
 
 const filteredCourses = computed(() => {
   if (!uploadForm.value.department_id) return [];
@@ -440,6 +576,11 @@ async function loadUsersData() {
 
 async function loadAuditLogs() {
   if (usersStore.auditLogs.length === 0) await usersStore.fetchAuditLogs();
+}
+
+async function loadCategoriesData() {
+  if (usersStore.departments.length === 0) await usersStore.fetchDepartments();
+  if (usersStore.courses.length === 0) await usersStore.fetchCourses();
 }
 
 onMounted(async () => {
@@ -495,6 +636,44 @@ async function handleDeptChange(userId, deptId) {
   } catch (err) {
     alert("Failed to update department.");
     await usersStore.fetchUsers();
+  }
+}
+
+async function handleAddDepartment() {
+  try {
+    await usersStore.addDepartment(deptForm.value);
+    deptForm.value = { name: "", code: "" };
+  } catch (err) {
+    alert(err.response?.data?.message || "Failed to add department");
+  }
+}
+
+async function handleDeleteDepartment(id) {
+  if (confirm("Are you sure you want to delete this department?")) {
+    try {
+      await usersStore.deleteDepartment(id);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to delete department");
+    }
+  }
+}
+
+async function handleAddCourse() {
+  try {
+    await usersStore.addCourse(courseForm.value);
+    courseForm.value = { name: "", code: "", department_id: "" };
+  } catch (err) {
+    alert(err.response?.data?.message || "Failed to add course");
+  }
+}
+
+async function handleDeleteCourse(id) {
+  if (confirm("Are you sure you want to delete this course?")) {
+    try {
+      await usersStore.deleteCourse(id);
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to delete course");
+    }
   }
 }
 </script>

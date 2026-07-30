@@ -61,7 +61,7 @@ exports.updateUserDepartment = async (req, res) => {
   }
 };
 
-// ==================== DEPARTMENTS & COURSES ====================
+// ==================== DEPARTMENTS ====================
 exports.getAllDepartments = async (req, res) => {
   try {
     const [departments] = await db.query('SELECT * FROM departments ORDER BY name ASC');
@@ -71,10 +71,65 @@ exports.getAllDepartments = async (req, res) => {
   }
 };
 
+exports.addDepartment = async (req, res) => {
+  try {
+    const { name, code } = req.body;
+    if (!name || !code) return res.status(400).json({ success: false, message: 'Name and code are required' });
+    
+    const [existing] = await db.query('SELECT id FROM departments WHERE code = ?', [code]);
+    if (existing.length > 0) return res.status(400).json({ success: false, message: 'Department code already exists' });
+    
+    const [result] = await db.query('INSERT INTO departments (name, code) VALUES (?, ?)', [name, code]);
+    res.status(201).json({ success: true, message: 'Department added successfully', id: result.insertId });
+  } catch (error) {
+    console.error('❌ Error adding department:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deleteDepartment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [result] = await db.query('DELETE FROM departments WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Department not found' });
+    res.status(200).json({ success: true, message: 'Department deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// ==================== COURSES ====================
 exports.getAllCourses = async (req, res) => {
   try {
     const [courses] = await db.query(`SELECT c.*, d.name as department_name FROM courses c LEFT JOIN departments d ON c.department_id = d.id ORDER BY c.name ASC`);
     res.status(200).json({ success: true, data: courses });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+exports.addCourse = async (req, res) => {
+  try {
+    const { name, code, department_id } = req.body;
+    if (!name || !code || !department_id) return res.status(400).json({ success: false, message: 'Name, code, and department are required' });
+    
+    const [existing] = await db.query('SELECT id FROM courses WHERE code = ?', [code]);
+    if (existing.length > 0) return res.status(400).json({ success: false, message: 'Course code already exists' });
+    
+    const [result] = await db.query('INSERT INTO courses (name, code, department_id) VALUES (?, ?, ?)', [name, code, department_id]);
+    res.status(201).json({ success: true, message: 'Course added successfully', id: result.insertId });
+  } catch (error) {
+    console.error('❌ Error adding course:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+exports.deleteCourse = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [result] = await db.query('DELETE FROM courses WHERE id = ?', [id]);
+    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Course not found' });
+    res.status(200).json({ success: true, message: 'Course deleted successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }
@@ -92,7 +147,7 @@ exports.getAuditLogs = async (req, res) => {
     `);
     res.status(200).json({ success: true, data: logs });
   } catch (error) {
-    console.error('❌ Error fetching audit logs:', error);
+    console.error(' Error fetching audit logs:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
