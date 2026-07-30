@@ -1,3 +1,4 @@
+const { logAction } = require('../utils/auditLogger');
 const pool = require('../config/db');
 const path = require('path');
 const fs = require('fs');
@@ -17,6 +18,8 @@ const uploadMaterial = async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
       [title, description || '', course_id, semester, file_path, original_name, uploaded_by]
     );
+
+    await logAction(uploaded_by, 'MATERIAL_UPLOAD', 'materials', result.insertId, `Uploaded material: ${title}`, req);
 
     res.status(201).json({ success: true, message: 'Material uploaded successfully', id: result.insertId });
   } catch (err) {
@@ -70,6 +73,7 @@ const approveMaterial = async (req, res) => {
     const { id } = req.params;
     const [result] = await pool.query("UPDATE materials SET status = 'approved' WHERE id = ?", [id]);
     if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Material not found' });
+    await logAction(req.user.id, 'MATERIAL_APPROVE', 'materials', id, 'Material approved by admin', req);
     res.json({ success: true, message: 'Material approved successfully' });
   } catch (err) {
     console.error('Approve error:', err);
@@ -85,6 +89,7 @@ const rejectMaterial = async (req, res) => {
 
     const [result] = await pool.query("UPDATE materials SET status = 'rejected', rejection_reason = ? WHERE id = ?", [reason, id]);
     if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Material not found' });
+    await logAction(req.user.id, 'MATERIAL_REJECT', 'materials', id, `Rejected: ${reason}`, req);
     res.json({ success: true, message: 'Material rejected successfully' });
   } catch (err) {
     console.error('Reject error:', err);

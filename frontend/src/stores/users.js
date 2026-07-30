@@ -35,8 +35,13 @@ export const useUsersStore = defineStore('users', () => {
     loading.value = true
     try {
       const response = await api.get('/admin/audit-logs')
-      auditLogs.value = response.data.data || []
-    } catch (err) { console.error('❌ Fetch Audit Logs Error:', err) } finally { loading.value = false }
+      // Handle both { data: [...] } and direct array responses
+      auditLogs.value = response.data.data || response.data || []
+    } catch (err) { 
+      console.error('❌ Fetch Audit Logs Error:', err) 
+    } finally { 
+      loading.value = false 
+    }
   }
 
   // ✅ ADDED: Create User Function

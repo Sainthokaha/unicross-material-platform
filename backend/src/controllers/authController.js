@@ -1,3 +1,4 @@
+const { logAction } = require('../utils/auditLogger');
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -72,6 +73,9 @@ const login = async (req, res) => {
     );
 
     const { password_hash, verification_token, reset_password_token, ...userWithoutSensitive } = user;
+
+        // Track the login across devices
+    await logAction(user.id, 'USER_LOGIN', 'users', user.id, `User logged in from ${req.headers['user-agent']}`, req);
 
     res.status(200).json({
       success: true,

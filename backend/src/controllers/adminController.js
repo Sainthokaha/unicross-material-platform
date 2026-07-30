@@ -1,3 +1,4 @@
+const { logAction } = require('../utils/auditLogger');
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 
@@ -37,6 +38,8 @@ const addUser = async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1)`,
       [full_name, email, password_hash, role, matric_number || null, staff_id || null, department_id || null]
     );
+
+    await logAction(req.user.id, 'USER_CREATE', 'users', result.insertId, `Created new user: ${full_name} (${role})`, req);
     
     res.status(201).json({ success: true, message: 'User created successfully', id: result.insertId });
   } catch (error) {
@@ -52,6 +55,8 @@ const toggleUserStatus = async (req, res) => {
     const statusValue = is_active ? 1 : 0;
     const [result] = await db.query('UPDATE users SET is_active = ? WHERE id = ?', [statusValue, id]);
     if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'User not found' });
+    const actionType = statusValue === 1 ? 'USER_ACTIVATED' : 'USER_DEACTIVATED';
+    await logAction(req.user.id, actionType, 'users', id, `User status changed to ${statusValue === 1 ? 'Active' : 'Inactive'}`, req);
     res.status(200).json({ success: true, message: `User ${statusValue === 1 ? 'activated' : 'deactivated'} successfully` });
   } catch (error) {
     console.error('❌ Error toggling user status:', error);
@@ -121,6 +126,8 @@ const updateUserRole = async (req, res) => {
       'UPDATE users SET role = ?, matric_number = ?, staff_id = ? WHERE id = ?', 
       [role, finalMatric, finalStaffId, id]
     );
+
+    await logAction(req.user.id, 'USER_ROLE_UPDATE', 'users', id, `Changed role to ${role}`, req);
     
     res.status(200).json({ success: true, message: 'User role and identifiers updated successfully' });
   } catch (error) {
