@@ -1,35 +1,98 @@
 <template>
   <div class="min-h-screen bg-gray-50">
-    <!-- Sidebar -->
     <Sidebar>
       <template #navigation>
-        <div class="text-gray-400 text-xs uppercase font-semibold mb-2 mt-4">
-          Materials
-        </div>
+        <button
+          @click="activeTab = 'browse'"
+          :class="[
+            'w-full text-left px-4 py-3 rounded-lg transition flex items-center gap-3',
+            activeTab === 'browse'
+              ? 'bg-primary-600 text-white'
+              : 'text-gray-300 hover:bg-gray-800',
+          ]"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+            ></path>
+          </svg>
+          Browse Materials
+        </button>
+        <router-link
+          to="/profile"
+          class="w-full text-left px-4 py-3 rounded-lg transition flex items-center gap-3 text-gray-300 hover:bg-gray-800"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            ></path>
+          </svg>
+          My Profile
+        </router-link>
       </template>
     </Sidebar>
 
-    <!-- Main Content -->
     <main class="pt-20 md:pt-16 md:ml-72 p-4 md:p-8 min-h-screen">
-      <h1 class="text-2xl md:text-3xl font-bold text-gray-900 mb-6">Student Dashboard</h1>
-
-      <!-- Search & Filter Card -->
-      <div class="bg-white p-4 md:p-6 rounded-lg shadow-sm mb-6 border border-gray-100">
-        <h3 class="text-lg font-semibold text-gray-800 mb-4">
-          Search & Filter Materials
-        </h3>
-        <div class="space-y-4">
-          <!-- Keyword Search -->
-          <div class="relative">
-            <input
-              v-model="filters.search"
-              @input="applyFilters"
-              type="text"
-              placeholder="Search by title, course code, or keywords..."
-              class="form-input pl-10 w-full"
-            />
+      <!-- Header & Student Info -->
+      <div class="mb-8">
+        <h1 class="text-2xl md:text-3xl font-bold text-gray-900">
+          Welcome back, {{ authStore.user?.full_name || "Student" }}!
+        </h1>
+        <div class="flex flex-wrap gap-4 mt-2 text-sm text-gray-500">
+          <span
+            class="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full shadow-sm border border-gray-100"
+          >
             <svg
-              class="absolute left-3 top-3.5 h-5 w-5 text-gray-400"
+              class="w-4 h-4 text-primary-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"
+              ></path>
+            </svg>
+            {{ authStore.user?.matric_number || "Matric Not Assigned" }}
+          </span>
+          <span
+            class="flex items-center gap-1.5 bg-white px-3 py-1 rounded-full shadow-sm border border-gray-100"
+          >
+            <svg
+              class="w-4 h-4 text-primary-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+              ></path>
+            </svg>
+            {{ authStore.user?.department_name || "Unassigned Department" }}
+          </span>
+        </div>
+      </div>
+
+      <!-- ================= BROWSE MATERIALS TAB ================= -->
+      <div v-if="activeTab === 'browse'">
+        <!-- Search Bar -->
+        <div class="mb-6 relative">
+          <div
+            class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+          >
+            <svg
+              class="h-5 w-5 text-gray-400"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -42,145 +105,132 @@
               ></path>
             </svg>
           </div>
-
-          <!-- Filters Grid -->
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1"
-                >Course</label
-              >
-              <select
-                v-model="filters.course_id"
-                @change="applyFilters"
-                class="form-input w-full"
-              >
-                <option value="">All Courses in My Department</option>
-                <option
-                  v-for="course in availableCourses"
-                  :key="course.id"
-                  :value="course.id"
-                >
-                  {{ course.code }} - {{ course.name }}
-                </option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1"
-                >Semester</label
-              >
-              <select
-                v-model="filters.semester"
-                @change="applyFilters"
-                class="form-input w-full"
-              >
-                <option value="">All Semesters</option>
-                <option value="1">First Semester (Harmattan)</option>
-                <option value="2">Second Semester (Rain)</option>
-              </select>
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1"
-                >From Date</label
-              >
-              <input
-                type="date"
-                v-model="filters.date_from"
-                @change="applyFilters"
-                class="form-input w-full"
-              />
-            </div>
-
-            <div>
-              <label class="block text-xs font-bold text-gray-500 uppercase mb-1"
-                >To Date</label
-              >
-              <input
-                type="date"
-                v-model="filters.date_to"
-                @change="applyFilters"
-                class="form-input w-full"
-              />
-            </div>
-          </div>
-
-          <div class="flex justify-end pt-2">
-            <button @click="clearFilters" class="btn btn-danger">Clear Filters</button>
-          </div>
+          <input
+            v-model="searchQuery"
+            type="text"
+            placeholder="Search by title, course, or uploader..."
+            class="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm shadow-sm transition duration-150 ease-in-out"
+          />
         </div>
-      </div>
 
-      <!-- Materials List -->
-      <div class="space-y-4">
-        <MaterialCard
-          v-for="material in materialsStore.materials"
-          :key="material.id"
-          :material="material"
-        />
+        <!-- Materials Grid -->
+        <div v-if="materialsStore.loading" class="text-center py-12 text-gray-500">
+          <svg
+            class="animate-spin h-8 w-8 mx-auto text-primary-600 mb-4"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          Loading library materials...
+        </div>
 
-        <p
-          v-if="!materialsStore.loading && materialsStore.materials.length === 0"
-          class="text-center text-gray-500 py-8 bg-white rounded-lg"
+        <div
+          v-else-if="filteredMaterials.length === 0"
+          class="bg-white p-12 rounded-lg shadow-sm border border-gray-100 text-center"
         >
-          No materials found matching your criteria.
-        </p>
-
-        <p v-if="materialsStore.loading" class="text-center text-gray-500 py-8">
-          Loading materials...
-        </p>
-      </div>
-
-      <!-- Pagination -->
-      <div
-        v-if="materialsStore.totalPages > 1"
-        class="mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100"
-      >
-        <p class="text-sm text-gray-600">
-          Showing
-          <span class="font-semibold">{{ materialsStore.materials.length }}</span> of
-          <span class="font-semibold">{{ materialsStore.totalItems }}</span> materials
-        </p>
-
-        <div class="flex items-center gap-2">
-          <button
-            @click="changePage(materialsStore.currentPage - 1)"
-            :disabled="materialsStore.currentPage === 1"
-            class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          <svg
+            class="w-16 h-16 mx-auto text-gray-300 mb-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            ← Previous
-          </button>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+            ></path>
+          </svg>
+          <h3 class="text-lg font-medium text-gray-900">No materials found</h3>
+          <p class="mt-1 text-sm text-gray-500">
+            {{
+              searchQuery
+                ? "Try adjusting your search terms."
+                : "There are no approved materials available for your department yet."
+            }}
+          </p>
+        </div>
 
-          <div class="hidden sm:flex items-center gap-1">
-            <button
-              v-for="page in visiblePages"
-              :key="page"
-              @click="changePage(page)"
-              :disabled="page === '...'"
-              :class="[
-                'w-9 h-9 rounded-lg text-sm font-medium transition',
-                page === materialsStore.currentPage
-                  ? 'bg-primary-600 text-white shadow-md'
-                  : page === '...'
-                  ? 'text-gray-400 cursor-default'
-                  : 'text-gray-600 hover:bg-gray-100',
-              ]"
-            >
-              {{ page }}
-            </button>
+        <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div
+            v-for="m in filteredMaterials"
+            :key="m.id"
+            class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-md transition-shadow duration-200 flex flex-col"
+          >
+            <!-- Card Header -->
+            <div class="p-6 flex-1">
+              <div class="flex items-start justify-between mb-4">
+                <span
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                >
+                  {{ m.course_name }}
+                </span>
+                <span class="text-xs text-gray-400">{{
+                  m.semester === "1" ? "Harmattan" : "Rain"
+                }}</span>
+              </div>
+              <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
+                {{ m.title }}
+              </h3>
+              <p class="text-sm text-gray-500 line-clamp-3 mb-4">
+                {{ m.description || "No description provided." }}
+              </p>
+
+              <div class="flex items-center gap-2 text-xs text-gray-400 mt-auto">
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  ></path>
+                </svg>
+                <span>Uploaded by {{ m.uploader_name }}</span>
+              </div>
+            </div>
+
+            <!-- Card Footer / Download -->
+            <div class="bg-gray-50 px-6 py-4 border-t border-gray-100">
+              <a
+                :href="m.file_url"
+                target="_blank"
+                class="w-full flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors shadow-sm"
+              >
+                <svg
+                  class="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+                  ></path>
+                </svg>
+                Download Material
+              </a>
+            </div>
           </div>
-
-          <span class="sm:hidden text-sm font-medium text-gray-700 px-2">
-            Page {{ materialsStore.currentPage }} of {{ materialsStore.totalPages }}
-          </span>
-
-          <button
-            @click="changePage(materialsStore.currentPage + 1)"
-            :disabled="materialsStore.currentPage === materialsStore.totalPages"
-            class="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition"
-          >
-            Next →
-          </button>
         </div>
       </div>
     </main>
@@ -192,67 +242,28 @@ import { ref, computed, onMounted } from "vue";
 import { useMaterialsStore } from "../stores/materials";
 import { useAuthStore } from "../stores/auth";
 import Sidebar from "../components/Sidebar.vue";
-import MaterialCard from "../components/MaterialCard.vue";
-import api from "../api/axios";
 
 const materialsStore = useMaterialsStore();
 const authStore = useAuthStore();
 
-const availableCourses = ref([]);
-const filters = ref({
-  search: "",
-  course_id: "",
-  semester: "",
-  date_from: "",
-  date_to: "",
-});
+const activeTab = ref("browse");
+const searchQuery = ref("");
 
-function applyFilters() {
-  materialsStore.fetchMaterials(filters.value, 1);
-}
+// Smart search filtering
+const filteredMaterials = computed(() => {
+  const query = searchQuery.value.toLowerCase().trim();
+  if (!query) return materialsStore.materials;
 
-function clearFilters() {
-  filters.value = { search: "", course_id: "", semester: "", date_from: "", date_to: "" };
-  materialsStore.fetchMaterials({}, 1);
-}
-
-function changePage(page) {
-  if (page >= 1 && page <= materialsStore.totalPages) {
-    materialsStore.fetchMaterials(filters.value, page);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-}
-
-const visiblePages = computed(() => {
-  const total = materialsStore.totalPages;
-  const current = materialsStore.currentPage;
-  let pages = [];
-
-  if (total <= 5) {
-    for (let i = 1; i <= total; i++) pages.push(i);
-  } else {
-    if (current <= 3) {
-      pages = [1, 2, 3, 4, "...", total];
-    } else if (current >= total - 2) {
-      pages = [1, "...", total - 3, total - 2, total - 1, total];
-    } else {
-      pages = [1, "...", current - 1, current, current + 1, "...", total];
-    }
-  }
-  return pages;
+  return materialsStore.materials.filter(
+    (m) =>
+      m.title.toLowerCase().includes(query) ||
+      m.course_name.toLowerCase().includes(query) ||
+      m.uploader_name.toLowerCase().includes(query)
+  );
 });
 
 onMounted(async () => {
+  // The backend automatically filters by student's department and 'approved' status
   await materialsStore.fetchMaterials();
-
-  try {
-    const res = await api.get("/materials/categories");
-    const userDeptId = authStore.user?.department_id;
-    availableCourses.value = res.data.courses.filter(
-      (c) => c.department_id == userDeptId
-    );
-  } catch (err) {
-    console.error("Failed to load courses", err);
-  }
 });
 </script>
