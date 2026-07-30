@@ -238,7 +238,6 @@
                       {{ m.status.toUpperCase() }}
                     </span>
                   </td>
-
                   <td class="px-6 py-4">
                     <div class="flex items-center gap-3">
                       <div class="flex items-center gap-2 pl-2 border-l border-gray-200">
@@ -374,7 +373,6 @@
                 </select>
               </div>
             </div>
-
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div v-if="userForm.role === 'student'">
                 <label class="block text-sm font-medium text-gray-700 mb-1"
@@ -414,7 +412,6 @@
                 </select>
               </div>
             </div>
-
             <p v-if="userError" class="text-red-600 text-sm">{{ userError }}</p>
             <button
               type="submit"
@@ -457,6 +454,15 @@
                 >
                   <td class="px-6 py-4 font-medium text-gray-900">
                     {{ user.full_name }}
+                    <!-- 🛡️ Visual indicator for the protected account -->
+                    <span
+                      v-if="
+                        user.full_name.toLowerCase().trim() === 'system administrator'
+                      "
+                      class="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800"
+                    >
+                      Root
+                    </span>
                   </td>
                   <td class="px-6 py-4 text-gray-600">{{ user.email }}</td>
 
@@ -464,7 +470,10 @@
                     <select
                       :value="user.role"
                       @change="handleRoleChange(user.id, $event.target.value)"
-                      class="text-sm border-gray-300 rounded-md p-1.5 bg-white shadow-sm focus:ring-primary-500 focus:border-primary-500 capitalize"
+                      :disabled="
+                        user.full_name.toLowerCase().trim() === 'system administrator'
+                      "
+                      class="text-sm border-gray-300 rounded-md p-1.5 bg-white shadow-sm focus:ring-primary-500 focus:border-primary-500 capitalize disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
                       <option value="student">Student</option>
                       <option value="lecturer">Lecturer</option>
@@ -476,7 +485,10 @@
                     <select
                       :value="user.department_id || ''"
                       @change="handleDeptChange(user.id, $event.target.value)"
-                      class="text-sm border-gray-300 rounded-md p-1.5 bg-white shadow-sm focus:ring-primary-500 focus:border-primary-500"
+                      :disabled="
+                        user.full_name.toLowerCase().trim() === 'system administrator'
+                      "
+                      class="text-sm border-gray-300 rounded-md p-1.5 bg-white shadow-sm focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
                     >
                       <option value="">Unassigned</option>
                       <option
@@ -508,7 +520,11 @@
                     </span>
                   </td>
                   <td class="px-6 py-4">
+                    <!-- 🛡️ Hide action button for System Administrator -->
                     <button
+                      v-if="
+                        user.full_name.toLowerCase().trim() !== 'system administrator'
+                      "
                       @click="
                         usersStore.toggleUserStatus(user.id, user.is_active === 1 ? 0 : 1)
                       "
@@ -521,6 +537,7 @@
                     >
                       {{ user.is_active === 1 ? "Deactivate" : "Activate" }}
                     </button>
+                    <span v-else class="text-xs text-gray-400 italic">Protected</span>
                   </td>
                 </tr>
               </tbody>
@@ -586,7 +603,6 @@
                   <td class="px-6 py-4 text-gray-600 break-words max-w-xs">
                     {{ log.details }}
                   </td>
-
                   <td class="px-6 py-4">
                     <p
                       class="text-xs text-gray-900 font-medium flex items-center gap-1"
@@ -602,7 +618,6 @@
                       {{ log.ip_address || "Unknown IP" }}
                     </p>
                   </td>
-
                   <td class="px-6 py-4 text-xs text-gray-500 whitespace-nowrap">
                     {{ new Date(log.created_at).toLocaleString() }}
                   </td>
@@ -807,9 +822,7 @@ async function handleUpload() {
     formData.append("description", uploadForm.value.description || "");
     formData.append("course_id", uploadForm.value.course_id);
     formData.append("semester", uploadForm.value.semester);
-
     await materialsStore.uploadMaterial(formData);
-
     showUpload.value = false;
     uploadForm.value = {
       title: "",
@@ -838,7 +851,6 @@ async function handleCreateUser() {
       staff_id: userForm.value.staff_id || null,
       department_id: userForm.value.department_id || null,
     });
-
     showUserForm.value = false;
     userForm.value = {
       full_name: "",
@@ -861,12 +873,9 @@ async function handleReject(id) {
 
 async function handleRoleChange(userId, newRole) {
   let extraIdentifiers = {};
-
   if (newRole === "student") {
     const matric = prompt(
-      "This user is now a Student.\n\n" +
-        "Please enter their Matriculation Number (e.g., 24/CSC/001):\n" +
-        "(Leave blank to set as PENDING)"
+      "This user is now a Student.\n\nPlease enter their Matriculation Number (e.g., 24/CSC/001):\n(Leave blank to set as PENDING)"
     );
     if (matric === null) {
       await usersStore.fetchUsers();
@@ -876,9 +885,7 @@ async function handleRoleChange(userId, newRole) {
   } else {
     const roleTitle = newRole === "lecturer" ? "Lecturer" : "Admin";
     const staffId = prompt(
-      `This user is now a ${roleTitle}.\n\n` +
-        "Please enter their Staff ID (e.g., STF/001):\n" +
-        "(Leave blank to set as PENDING)"
+      `This user is now a ${roleTitle}.\n\nPlease enter their Staff ID (e.g., STF/001):\n(Leave blank to set as PENDING)`
     );
     if (staffId === null) {
       await usersStore.fetchUsers();
@@ -886,7 +893,6 @@ async function handleRoleChange(userId, newRole) {
     }
     extraIdentifiers.staff_id = staffId.trim() === "" ? null : staffId.trim();
   }
-
   try {
     await usersStore.updateUserRole(userId, newRole, extraIdentifiers);
   } catch (err) {

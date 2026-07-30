@@ -1,6 +1,11 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
-const { logAction } = require('../utils/auditLogger'); // ✅ IMPORTED
+const { logAction } = require('../utils/auditLogger');
+
+// 🛡️ HELPER: Check if user is the protected System Administrator
+const isSystemAdmin = (user) => {
+  return user && user.full_name && user.full_name.toLowerCase().trim() === 'system administrator';
+};
 
 const getAllUsers = async (req, res) => {
   try {
@@ -22,10 +27,7 @@ const addUser = async (req, res) => {
     if (existing.length > 0) return res.status(400).json({ success: false, message: 'Email already exists' });
     const password_hash = await bcrypt.hash(password, 12);
     const [result] = await db.query(`INSERT INTO users (full_name, email, password_hash, role, matric_number, staff_id, department_id, is_active, email_verified) VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1)`, [full_name, email, password_hash, role, matric_number || null, staff_id || null, department_id || null]);
-    
-    // ✅ TRACK USER CREATION
     await logAction(req.user.id, 'USER_CREATE', 'users', result.insertId, `Created new user: ${full_name} (${role})`, req);
-    
     res.status(201).json({ success: true, message: 'User created successfully', id: result.insertId });
   } catch (error) {
     console.error('❌ Error adding user:', error);
@@ -37,14 +39,16 @@ const toggleUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { is_active } = req.body;
-    const statusValue = is_active ? 1 : 0;
-    const [result] = await db.query('UPDATE users SET is_active = ? WHERE id = ?', [statusValue, id]);
-    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'User not found' });
     
-    // ✅ TRACK STATUS TOGGLE
+    // 🛡️ PROTECTION CHECK
+    const [users] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
+    if (users.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+    if (isSystemAdmin(users[0])) return res.status(403).json({ success: false, message: 'Access Denied: The System Administrator account cannot be deactivated.' });
+
+    const statusValue = is_active ? 1 : 0;
+    await db.query('UPDATE users SET is_active = ? WHERE id = ?', [statusValue, id]);
     const actionType = statusValue === 1 ? 'USER_ACTIVATED' : 'USER_DEACTIVATED';
     await logAction(req.user.id, actionType, 'users', id, `User status changed`, req);
-    
     res.status(200).json({ success: true, message: `User ${statusValue === 1 ? 'activated' : 'deactivated'} successfully` });
   } catch (error) {
     console.error('❌ Error toggling user status:', error);
@@ -57,8 +61,12 @@ const updateUserDepartment = async (req, res) => {
     const { id } = req.params;
     let { department_id } = req.body;
     department_id = department_id ? parseInt(department_id, 10) : null;
+    
+    // 🛡️ PROTECTION CHECK
     const [users] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
     if (users.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+    if (isSystemAdmin(users[0])) return res.status(403).json({ success: false, message: 'Access Denied: The System Administrator department cannot be altered.' });
+
     const user = users[0];
     let newMatric = user.matric_number;
     if (user.role === 'student' && department_id) {
@@ -78,7 +86,7 @@ const updateUserDepartment = async (req, res) => {
     await logAction(req.user.id, 'USER_DEPT_UPDATE', 'users', id, `Department updated`, req);
     res.status(200).json({ success: true, message: 'User updated successfully', newMatric });
   } catch (error) {
-    console.error('❌ Error updating user department:', error);
+    console.error(' Error updating user department:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
@@ -89,14 +97,17 @@ const updateUserRole = async (req, res) => {
     const { role, matric_number, staff_id } = req.body;
     const validRoles = ['student', 'lecturer', 'admin'];
     if (!validRoles.includes(role)) return res.status(400).json({ success: false, message: 'Invalid role' });
+    
+    // 🛡️ PROTECTION CHECK
+    const [users] = await db.query('SELECT * FROM users WHERE id = ?', [id]);
+    if (users.length === 0) return res.status(404).json({ success: false, message: 'User not found' });
+    if (isSystemAdmin(users[0])) return res.status(403).json({ success: false, message: 'Access Denied: The System Administrator role cannot be altered.' });
+
     let finalMatric = null; let finalStaffId = null;
     if (role === 'student') { finalStaffId = null; finalMatric = matric_number || null; } 
     else { finalMatric = null; finalStaffId = staff_id || null; }
     await db.query('UPDATE users SET role = ?, matric_number = ?, staff_id = ? WHERE id = ?', [role, finalMatric, finalStaffId, id]);
-    
-    // ✅ TRACK ROLE UPDATE
     await logAction(req.user.id, 'USER_ROLE_UPDATE', 'users', id, `Changed role to ${role}`, req);
-    
     res.status(200).json({ success: true, message: 'User role and identifiers updated successfully' });
   } catch (error) {
     console.error('❌ Error updating user role:', error);
@@ -160,16 +171,9 @@ const deleteCourse = async (req, res) => {
   } catch (error) { res.status(500).json({ success: false, message: 'Server error' }); }
 };
 
-// ✅ FETCH AUDIT LOGS
 const getAuditLogs = async (req, res) => {
   try {
-    const [logs] = await db.query(`
-      SELECT al.*, u.full_name, u.email 
-      FROM audit_logs al 
-      LEFT JOIN users u ON al.user_id = u.id 
-      ORDER BY al.created_at DESC 
-      LIMIT 100
-    `);
+    const [logs] = await db.query(`SELECT al.*, u.full_name, u.email FROM audit_logs al LEFT JOIN users u ON al.user_id = u.id ORDER BY al.created_at DESC LIMIT 100`);
     res.status(200).json({ success: true, data: logs });
   } catch (error) {
     console.error('❌ Error fetching audit logs:', error);
