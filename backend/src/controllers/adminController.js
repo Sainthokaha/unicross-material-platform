@@ -2,7 +2,7 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 
 // ==================== USERS ====================
-exports.getAllUsers = async (req, res) => {
+const getAllUsers = async (req, res) => {
   try {
     const [users] = await db.query(`SELECT u.id, u.full_name, u.email, u.role, u.matric_number, u.staff_id, u.is_active, u.department_id, d.name as department_name FROM users u LEFT JOIN departments d ON u.department_id = d.id ORDER BY u.created_at DESC`);
     res.status(200).json({ success: true, data: users });
@@ -12,7 +12,7 @@ exports.getAllUsers = async (req, res) => {
   }
 };
 
-exports.toggleUserStatus = async (req, res) => {
+const toggleUserStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { is_active } = req.body;
@@ -26,7 +26,7 @@ exports.toggleUserStatus = async (req, res) => {
   }
 };
 
-exports.updateUserDepartment = async (req, res) => {
+const updateUserDepartment = async (req, res) => {
   try {
     const { id } = req.params;
     let { department_id } = req.body;
@@ -62,7 +62,7 @@ exports.updateUserDepartment = async (req, res) => {
 };
 
 // ==================== DEPARTMENTS ====================
-exports.getAllDepartments = async (req, res) => {
+const getAllDepartments = async (req, res) => {
   try {
     const [departments] = await db.query('SELECT * FROM departments ORDER BY name ASC');
     res.status(200).json({ success: true, data: departments });
@@ -71,7 +71,7 @@ exports.getAllDepartments = async (req, res) => {
   }
 };
 
-exports.addDepartment = async (req, res) => {
+const addDepartment = async (req, res) => {
   try {
     const { name, code } = req.body;
     if (!name || !code) return res.status(400).json({ success: false, message: 'Name and code are required' });
@@ -87,7 +87,7 @@ exports.addDepartment = async (req, res) => {
   }
 };
 
-exports.deleteDepartment = async (req, res) => {
+const deleteDepartment = async (req, res) => {
   try {
     const { id } = req.params;
     const [result] = await db.query('DELETE FROM departments WHERE id = ?', [id]);
@@ -99,7 +99,7 @@ exports.deleteDepartment = async (req, res) => {
 };
 
 // ==================== COURSES ====================
-exports.getAllCourses = async (req, res) => {
+const getAllCourses = async (req, res) => {
   try {
     const [courses] = await db.query(`SELECT c.*, d.name as department_name FROM courses c LEFT JOIN departments d ON c.department_id = d.id ORDER BY c.name ASC`);
     res.status(200).json({ success: true, data: courses });
@@ -108,7 +108,7 @@ exports.getAllCourses = async (req, res) => {
   }
 };
 
-exports.addCourse = async (req, res) => {
+const addCourse = async (req, res) => {
   try {
     const { name, code, department_id } = req.body;
     if (!name || !code || !department_id) return res.status(400).json({ success: false, message: 'Name, code, and department are required' });
@@ -124,7 +124,7 @@ exports.addCourse = async (req, res) => {
   }
 };
 
-exports.deleteCourse = async (req, res) => {
+const deleteCourse = async (req, res) => {
   try {
     const { id } = req.params;
     const [result] = await db.query('DELETE FROM courses WHERE id = ?', [id]);
@@ -136,7 +136,7 @@ exports.deleteCourse = async (req, res) => {
 };
 
 // ==================== AUDIT LOGS ====================
-exports.getAuditLogs = async (req, res) => {
+const getAuditLogs = async (req, res) => {
   try {
     const [logs] = await db.query(`
       SELECT al.*, u.full_name, u.email 
@@ -147,7 +147,21 @@ exports.getAuditLogs = async (req, res) => {
     `);
     res.status(200).json({ success: true, data: logs });
   } catch (error) {
-    console.error(' Error fetching audit logs:', error);
+    console.error('❌ Error fetching audit logs:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
+};
+
+// ✅ FOOLPROOF EXPORT: This guarantees every function is exported correctly
+module.exports = {
+  getAllUsers,
+  toggleUserStatus,
+  updateUserDepartment,
+  getAllDepartments,
+  addDepartment,
+  deleteDepartment,
+  getAllCourses,
+  addCourse,
+  deleteCourse,
+  getAuditLogs
 };
