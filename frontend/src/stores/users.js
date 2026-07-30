@@ -95,12 +95,22 @@ export const useUsersStore = defineStore('users', () => {
     await fetchCourses()
   }
 
-  async function updateUserRole(userId, newRole) {
+  async function updateUserRole(userId, newRole, extraIdentifiers = {}) {
     loading.value = true
     try {
-      await api.patch(`/admin/users/${userId}/role`, { role: newRole })
+      await api.patch(`/admin/users/${userId}/role`, { 
+        role: newRole,
+        matric_number: extraIdentifiers.matric_number || null,
+        staff_id: extraIdentifiers.staff_id || null
+      })
+      
+      // Optimistic UI update
       const user = users.value.find(u => u.id === userId)
-      if (user) user.role = newRole
+      if (user) {
+        user.role = newRole
+        user.matric_number = extraIdentifiers.matric_number || null
+        user.staff_id = extraIdentifiers.staff_id || null
+      }
     } catch (err) { 
       console.error('❌ Update Role Error:', err)
       throw err 

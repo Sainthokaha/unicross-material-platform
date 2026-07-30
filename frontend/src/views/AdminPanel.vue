@@ -868,8 +868,39 @@ async function handleReject(id) {
 
 // ✅ NEW: Handle inline role change
 async function handleRoleChange(userId, newRole) {
+  let extraIdentifiers = {};
+
+  // 🧠 Smart Prompt based on the new role
+  if (newRole === "student") {
+    const matric = prompt(
+      "This user is now a Student.\n\n" +
+        "Please enter their Matriculation Number (e.g., 24/CSC/001):\n" +
+        "(Leave blank to set as PENDING)"
+    );
+
+    if (matric === null) {
+      await usersStore.fetchUsers(); // User clicked Cancel, revert UI
+      return;
+    }
+    extraIdentifiers.matric_number = matric.trim() === "" ? null : matric.trim();
+  } else {
+    const roleTitle = newRole === "lecturer" ? "Lecturer" : "Admin";
+    const staffId = prompt(
+      `This user is now a ${roleTitle}.\n\n` +
+        "Please enter their Staff ID (e.g., STF/001):\n" +
+        "(Leave blank to set as PENDING)"
+    );
+
+    if (staffId === null) {
+      await usersStore.fetchUsers(); // User clicked Cancel, revert UI
+      return;
+    }
+    extraIdentifiers.staff_id = staffId.trim() === "" ? null : staffId.trim();
+  }
+
+  // Execute the atomic update
   try {
-    await usersStore.updateUserRole(userId, newRole);
+    await usersStore.updateUserRole(userId, newRole, extraIdentifiers);
   } catch (err) {
     alert("Failed to update role.");
     await usersStore.fetchUsers(); // Revert UI on failure

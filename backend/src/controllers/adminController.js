@@ -98,15 +98,31 @@ const updateUserDepartment = async (req, res) => {
 const updateUserRole = async (req, res) => {
   try {
     const { id } = req.params;
-    const { role } = req.body;
+    const { role, matric_number, staff_id } = req.body;
     
     const validRoles = ['student', 'lecturer', 'admin'];
     if (!validRoles.includes(role)) {
       return res.status(400).json({ success: false, message: 'Invalid role' });
     }
 
-    await db.query('UPDATE users SET role = ? WHERE id = ?', [role, id]);
-    res.status(200).json({ success: true, message: 'User role updated successfully' });
+    // 🛡️ CHIEF ARCHITECT RULE: Enforce data integrity based on role
+    let finalMatric = null;
+    let finalStaffId = null;
+
+    if (role === 'student') {
+      finalStaffId = null; // Students cannot have staff IDs
+      finalMatric = matric_number || null; // Use provided, or nullify if empty
+    } else {
+      finalMatric = null; // Lecturers/Admins cannot have matric numbers
+      finalStaffId = staff_id || null; // Use provided, or nullify if empty
+    }
+
+    await db.query(
+      'UPDATE users SET role = ?, matric_number = ?, staff_id = ? WHERE id = ?', 
+      [role, finalMatric, finalStaffId, id]
+    );
+    
+    res.status(200).json({ success: true, message: 'User role and identifiers updated successfully' });
   } catch (error) {
     console.error('❌ Error updating user role:', error);
     res.status(500).json({ success: false, message: 'Server error' });
