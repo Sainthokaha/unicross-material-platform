@@ -28,7 +28,7 @@ export const useUsersStore = defineStore('users', () => {
     try {
       const response = await api.get('/admin/courses')
       courses.value = response.data.data || []
-    } catch (err) { console.error(' Fetch Courses Error:', err) }
+    } catch (err) { console.error('❌ Fetch Courses Error:', err) }
   }
 
   async function fetchAuditLogs() {
@@ -37,6 +37,19 @@ export const useUsersStore = defineStore('users', () => {
       const response = await api.get('/admin/audit-logs')
       auditLogs.value = response.data.data || []
     } catch (err) { console.error('❌ Fetch Audit Logs Error:', err) } finally { loading.value = false }
+  }
+
+  // ✅ ADDED: Create User Function
+  async function createUser(userData) {
+    loading.value = true
+    try {
+      await api.post('/admin/users', userData)
+      await fetchUsers() // Refresh the list
+    } catch (err) {
+      throw err
+    } finally {
+      loading.value = false
+    }
   }
 
   async function toggleUserStatus(id, newStatus) {
@@ -85,7 +98,7 @@ export const useUsersStore = defineStore('users', () => {
   return { 
     users, departments, courses, auditLogs, loading,
     fetchUsers, fetchDepartments, fetchCourses, fetchAuditLogs,
-    toggleUserStatus, updateUserDepartment,
+    createUser, toggleUserStatus, updateUserDepartment,
     addDepartment, deleteDepartment, addCourse, deleteCourse
   }
 })

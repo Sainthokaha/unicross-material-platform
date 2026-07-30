@@ -267,6 +267,114 @@
           class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
         >
           <h1 class="text-2xl md:text-3xl font-bold text-gray-900">User Management</h1>
+          <!-- ✅ ADDED: Add User Button -->
+          <button
+            @click="showUserForm = !showUserForm"
+            class="btn btn-primary w-full sm:w-auto"
+          >
+            {{ showUserForm ? "Hide Form" : "+ Add User" }}
+          </button>
+        </div>
+
+        <!-- ✅ ADDED: Add User Form -->
+        <div
+          v-if="showUserForm"
+          class="bg-white p-6 rounded-lg shadow-sm mb-6 border border-gray-100"
+        >
+          <h3 class="text-xl font-semibold mb-4">Create New User</h3>
+          <form @submit.prevent="handleCreateUser" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Full Name</label
+                >
+                <input
+                  v-model="userForm.full_name"
+                  type="text"
+                  required
+                  class="form-input"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  v-model="userForm.email"
+                  type="email"
+                  required
+                  class="form-input"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Password</label
+                >
+                <input
+                  v-model="userForm.password"
+                  type="password"
+                  required
+                  minlength="6"
+                  class="form-input"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                <select v-model="userForm.role" required class="form-input">
+                  <option value="student">Student</option>
+                  <option value="lecturer">Lecturer</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div v-if="userForm.role === 'student'">
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Matric Number</label
+                >
+                <input
+                  v-model="userForm.matric_number"
+                  type="text"
+                  class="form-input"
+                  placeholder="e.g., 001"
+                />
+              </div>
+              <div v-if="userForm.role !== 'student'">
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Staff ID</label
+                >
+                <input
+                  v-model="userForm.staff_id"
+                  type="text"
+                  class="form-input"
+                  placeholder="e.g., STF/001"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Department</label
+                >
+                <select v-model="userForm.department_id" class="form-input">
+                  <option value="">Unassigned (System Admin)</option>
+                  <option
+                    v-for="dept in usersStore.departments"
+                    :key="dept.id"
+                    :value="dept.id"
+                  >
+                    {{ dept.name }}
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <p v-if="userError" class="text-red-600 text-sm">{{ userError }}</p>
+            <button
+              type="submit"
+              :disabled="usersStore.loading"
+              class="btn btn-primary w-full sm:w-auto"
+            >
+              {{ usersStore.loading ? "Creating..." : "Create User" }}
+            </button>
+          </form>
         </div>
 
         <div class="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
@@ -551,6 +659,19 @@ const showUpload = ref(false);
 const uploading = ref(false);
 const uploadError = ref("");
 
+// ✅ ADDED: User Form State
+const showUserForm = ref(false);
+const userError = ref("");
+const userForm = ref({
+  full_name: "",
+  email: "",
+  password: "",
+  role: "student",
+  matric_number: "",
+  staff_id: "",
+  department_id: "",
+});
+
 const uploadForm = ref({
   title: "",
   description: "",
@@ -622,6 +743,36 @@ async function handleUpload() {
     uploadError.value = err.response?.data?.message || "Upload failed.";
   } finally {
     uploading.value = false;
+  }
+}
+
+// ✅ ADDED: Handle Create User
+async function handleCreateUser() {
+  userError.value = "";
+  try {
+    await usersStore.createUser({
+      full_name: userForm.value.full_name,
+      email: userForm.value.email,
+      password: userForm.value.password,
+      role: userForm.value.role,
+      matric_number: userForm.value.matric_number || null,
+      staff_id: userForm.value.staff_id || null,
+      department_id: userForm.value.department_id || null,
+    });
+
+    // Reset form and hide it on success
+    showUserForm.value = false;
+    userForm.value = {
+      full_name: "",
+      email: "",
+      password: "",
+      role: "student",
+      matric_number: "",
+      staff_id: "",
+      department_id: "",
+    };
+  } catch (err) {
+    userError.value = err.response?.data?.message || "Failed to create user.";
   }
 }
 
