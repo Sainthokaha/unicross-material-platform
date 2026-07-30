@@ -238,21 +238,129 @@
                       {{ m.status.toUpperCase() }}
                     </span>
                   </td>
-                  <td class="px-6 py-4 flex gap-2">
-                    <button
-                      v-if="m.status === 'pending'"
-                      @click="materialsStore.approveMaterial(m.id)"
-                      class="text-green-600 hover:text-green-800 font-bold text-xs"
+                  <td class="px-6 py-4">
+                    <div
+                      class="flex flex-col sm:flex-row gap-2 items-start sm:items-center"
                     >
-                      Approve
-                    </button>
-                    <button
-                      v-if="m.status === 'pending'"
-                      @click="handleReject(m.id)"
-                      class="text-red-600 hover:text-red-800 font-bold text-xs"
-                    >
-                      Reject
-                    </button>
+                      <!-- If Pending: Show Action Buttons -->
+                      <template v-if="m.status === 'pending'">
+                        <button
+                          @click="materialsStore.approveMaterial(m.id)"
+                          class="bg-green-100 text-green-700 hover:bg-green-200 px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1"
+                        >
+                          <svg
+                            class="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M5 13l4 4L19 7"
+                            ></path>
+                          </svg>
+                          Approve
+                        </button>
+                        <button
+                          @click="handleReject(m.id)"
+                          class="bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1.5 rounded text-xs font-bold transition flex items-center gap-1"
+                        >
+                          <svg
+                            class="w-3.5 h-3.5"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M6 18L18 6M6 6l12 12"
+                            ></path>
+                          </svg>
+                          Reject
+                        </button>
+                      </template>
+
+                      <!-- If Approved: Show Status and View Link -->
+                      <template v-else-if="m.status === 'approved'">
+                        <span
+                          class="text-green-600 text-xs font-bold flex items-center gap-1 bg-green-50 px-2 py-1 rounded"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            ></path>
+                          </svg>
+                          Approved
+                        </span>
+                        <a
+                          :href="m.file_url"
+                          target="_blank"
+                          class="text-blue-600 hover:text-blue-800 text-xs font-bold flex items-center gap-1 hover:underline"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                            ></path>
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                            ></path>
+                          </svg>
+                          View File
+                        </a>
+                      </template>
+
+                      <!-- If Rejected: Show Status and Reason -->
+                      <template v-else>
+                        <span
+                          class="text-red-600 text-xs font-bold flex items-center gap-1 bg-red-50 px-2 py-1 rounded"
+                        >
+                          <svg
+                            class="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            ></path>
+                          </svg>
+                          Rejected
+                        </span>
+                        <span
+                          v-if="m.rejection_reason"
+                          :title="m.rejection_reason"
+                          class="text-gray-500 text-xs truncate max-w-[120px] cursor-help border-b border-dotted border-gray-400"
+                        >
+                          ({{ m.rejection_reason }})
+                        </span>
+                      </template>
+                    </div>
                   </td>
                 </tr>
               </tbody>
@@ -267,7 +375,6 @@
           class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6"
         >
           <h1 class="text-2xl md:text-3xl font-bold text-gray-900">User Management</h1>
-          <!-- ✅ ADDED: Add User Button -->
           <button
             @click="showUserForm = !showUserForm"
             class="btn btn-primary w-full sm:w-auto"
@@ -276,7 +383,6 @@
           </button>
         </div>
 
-        <!-- ✅ ADDED: Add User Form -->
         <div
           v-if="showUserForm"
           class="bg-white p-6 rounded-lg shadow-sm mb-6 border border-gray-100"
@@ -659,7 +765,6 @@ const showUpload = ref(false);
 const uploading = ref(false);
 const uploadError = ref("");
 
-// ✅ ADDED: User Form State
 const showUserForm = ref(false);
 const userError = ref("");
 const userForm = ref({
@@ -746,7 +851,6 @@ async function handleUpload() {
   }
 }
 
-// ✅ ADDED: Handle Create User
 async function handleCreateUser() {
   userError.value = "";
   try {
@@ -760,7 +864,6 @@ async function handleCreateUser() {
       department_id: userForm.value.department_id || null,
     });
 
-    // Reset form and hide it on success
     showUserForm.value = false;
     userForm.value = {
       full_name: "",
