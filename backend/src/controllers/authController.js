@@ -8,7 +8,7 @@ const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ==================== REGISTER ====================
-exports.register = async (req, res) => {
+const register = async (req, res) => {
   try {
     const { full_name, email, password, role, matric_number, staff_id, department_id } = req.body;
 
@@ -41,7 +41,7 @@ exports.register = async (req, res) => {
 };
 
 // ==================== LOGIN ====================
-exports.login = async (req, res) => {
+const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -86,7 +86,7 @@ exports.login = async (req, res) => {
 };
 
 // ==================== FORGOT PASSWORD ====================
-exports.forgotPassword = async (req, res) => {
+const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -130,7 +130,7 @@ exports.forgotPassword = async (req, res) => {
 };
 
 // ==================== RESET PASSWORD ====================
-exports.resetPassword = async (req, res) => {
+const resetPassword = async (req, res) => {
   try {
     const { token, newPassword } = req.body;
 
@@ -166,7 +166,7 @@ exports.resetPassword = async (req, res) => {
 };
 
 // ==================== CHANGE PASSWORD ====================
-exports.changePassword = async (req, res) => {
+const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     const userId = req.user.id;
@@ -192,13 +192,13 @@ exports.changePassword = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
-    console.error(' Change Password Error:', error);
+    console.error('❌ Change Password Error:', error);
     res.status(500).json({ success: false, message: 'Server error during password change' });
   }
 };
 
 // ==================== UPDATE PROFILE IMAGE ====================
-exports.updateProfileImage = async (req, res) => {
+const updateProfileImage = async (req, res) => {
   try {
     const userId = req.user.id;
     
@@ -222,7 +222,7 @@ exports.updateProfileImage = async (req, res) => {
 };
 
 // ==================== VERIFY EMAIL ====================
-exports.verifyEmail = async (req, res) => {
+const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
 
@@ -256,7 +256,7 @@ exports.verifyEmail = async (req, res) => {
 };
 
 // ==================== GET CURRENT USER (ME) ====================
-exports.getMe = async (req, res) => {
+const getMe = async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -280,7 +280,7 @@ exports.getMe = async (req, res) => {
 };
 
 // ==================== UPDATE PROFILE (NAME ONLY) ====================
-exports.updateProfile = async (req, res) => {
+const updateProfile = async (req, res) => {
   try {
     const { full_name } = req.body;
     const userId = req.user.id;
@@ -293,12 +293,12 @@ exports.updateProfile = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Profile updated successfully' });
   } catch (error) {
-    console.error(' Update Profile Error:', error);
+    console.error('❌ Update Profile Error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// ✅ FOOLPROOF EXPORT (Includes updateProfile)
+// ✅ FOOLPROOF EXPORT: This guarantees every function is exported correctly
 module.exports = {
   register,
   login,
@@ -308,5 +308,5 @@ module.exports = {
   updateProfileImage,
   verifyEmail,
   getMe,
-  updateProfile // ✅ ADDED HERE
+  updateProfile
 };
