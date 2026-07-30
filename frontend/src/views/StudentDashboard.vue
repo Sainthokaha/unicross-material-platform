@@ -94,7 +94,7 @@
           <input
             v-model="searchQuery"
             type="text"
-            placeholder="Search by title, course, or uploader..."
+            placeholder="Search by title, course, description, or uploader..."
             class="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm shadow-sm transition duration-150 ease-in-out"
           />
         </div>
@@ -235,7 +235,7 @@ const authStore = useAuthStore();
 const activeTab = ref("browse");
 const searchQuery = ref("");
 
-// Smart search filtering
+// ✅ UPDATED: Smart search filtering perfectly aligned with backend logic
 const filteredMaterials = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
   if (!query) return materialsStore.materials;
@@ -244,6 +244,7 @@ const filteredMaterials = computed(() => {
     (m) =>
       m.title.toLowerCase().includes(query) ||
       m.course_name.toLowerCase().includes(query) ||
+      (m.description && m.description.toLowerCase().includes(query)) || // ✅ Added description for backend consistency
       m.uploader_name.toLowerCase().includes(query)
   );
 });
