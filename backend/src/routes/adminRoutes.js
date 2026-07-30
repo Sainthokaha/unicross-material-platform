@@ -3,7 +3,7 @@ const router = express.Router();
 const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const adminController = require('../controllers/adminController');
 
-// Apply verifyToken to all admin routes
+// Apply verifyToken to ALL admin routes
 router.use(verifyToken);
 
 // Users
