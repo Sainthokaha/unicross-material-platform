@@ -1,76 +1,57 @@
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const path = require('path');
-const fs = require('fs');
-const materialRoutes = require('./routes/materialRoutes');
+require('dotenv').config();
 
-// Load environment variables
-dotenv.config();
-
+// Initialize Express app
 const app = express();
 
-// 1. BULLETPROOF CORS CONFIGURATION
-const allowedOrigins = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
-  'http://localhost:5173',
-  'https://unicross-material-platform.vercel.app' // Replace with your actual Vercel URL if different
-];
-
+// ==================== MIDDLEWARE ====================
 app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
-      console.log('CORS blocked origin:', origin);
-      return callback(new Error('CORS not allowed'), false);
-    }
-    return callback(null, true);
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  origin: process.env.FRONTEND_URL || 'https://unicross-material-platform.vercel.app',
+  credentials: true
 }));
-
-// 2. MIDDLEWARE
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
-
-// 3. ENSURE UPLOADS DIRECTORY EXISTS (Fixes cloud deployment crashes)
-const uploadDir = path.join(__dirname, '../uploads');
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir, { recursive: true });
-  console.log('✅ Created uploads directory');
-}
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from the uploads directory
+// This allows the frontend to access uploaded files via /uploads/filename.ext
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
-// 4. ROUTES
-// Welcome Route (So the backend URL looks professional)
-app.get('/', (req, res) => {
-  res.json({ 
-    status: 'success',
-    message: '🚀 UNICROSS Material Sharing API is live and running!',
-    version: '1.0.0'
+// ==================== ROUTES ====================
+// Ensure these filenames match EXACTLY (case-sensitive)
+const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const materialRoutes = require('./routes/materialRoutes');
+
+app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/materials', materialRoutes);
+
+// ==================== HEALTH CHECK ====================
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    message: 'UNICROSS Material Sharing API is live and healthy',
+    timestamp: new Date().toISOString()
   });
 });
 
-app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api/materials', require('./routes/materialRoutes'));
-app.use('/api/admin', require('./routes/adminRoutes'));
+// ==================== ERROR HANDLING ====================
+// Catch-all for undefined routes
+app.use((req, res, next) => {
+  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
+});
 
-// 5. GLOBAL ERROR HANDLER
+// Global error handler
 app.use((err, req, res, next) => {
-  console.error('❌ GLOBAL ERROR:', err.message);
-  res.status(err.status || 500).json({ 
-    message: err.message || 'Internal Server Error',
-    stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
-  });
+  console.error('❌ Global Error:', err.message);
+  res.status(500).json({ success: false, message: 'Internal server error' });
 });
 
-// 6. START SERVER
+// ==================== START SERVER ====================
 const PORT = process.env.PORT || 5000;
+
 app.listen(PORT, () => {
   console.log(`🚀 UNICROSS Material Sharing API is live and running on port ${PORT}`);
 });
