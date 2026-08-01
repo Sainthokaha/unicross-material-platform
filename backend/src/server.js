@@ -1,9 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
-// Initialize Express app
 const app = express();
 
 // ==================== MIDDLEWARE ====================
@@ -14,12 +14,38 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from the uploads directory
-// This allows the frontend to access uploaded files via /uploads/filename.ext
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+// ==================== STATIC FILES (UPLOADS) ====================
+// Use process.cwd() for a reliable absolute path to the backend root
+const uploadPath = path.join(process.cwd(), 'uploads');
+
+// Ensure the directory exists
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true });
+  console.log('📁 Created uploads directory at:', uploadPath);
+} else {
+  console.log('📂 Serving uploads from:', uploadPath);
+}
+
+// Serve static files
+app.use('/uploads', express.static(uploadPath));
+
+// ==================== DIAGNOSTIC ROUTE ====================
+// This lets us see exactly what files are currently on the server
+app.get('/api/debug/uploads', (req, res) => {
+  try {
+    const files = fs.readdirSync(uploadPath);
+    res.json({ 
+      success: true, 
+      uploadPath, 
+      fileCount: files.length,
+      files: files 
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+    }
+});
 
 // ==================== ROUTES ====================
-// Ensure these filenames match EXACTLY (case-sensitive)
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const materialRoutes = require('./routes/materialRoutes');
@@ -38,12 +64,10 @@ app.get('/api/health', (req, res) => {
 });
 
 // ==================== ERROR HANDLING ====================
-// Catch-all for undefined routes
 app.use((req, res, next) => {
   res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
   console.error('❌ Global Error:', err.message);
   res.status(500).json({ success: false, message: 'Internal server error' });
