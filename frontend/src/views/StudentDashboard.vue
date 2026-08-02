@@ -189,7 +189,7 @@
             <!-- ✅ UPDATED: Card Footer with Direct Download -->
             <div class="bg-gray-50 px-6 py-4 border-t border-gray-100">
               <button
-                @click="handleDownload(m.id, m.title)"
+                @click="handleDownload(m.id, m.title, m.original_name)"
                 :disabled="downloadingId === m.id"
                 class="w-full flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -258,38 +258,69 @@ const filteredMaterials = computed(() => {
   );
 });
 
-// ✅ NEW: Direct Download Function
-async function handleDownload(materialId, materialTitle) {
+// ✅ NEW: Direct Download Function with Comprehensive Error Handling
+async function handleDownload(materialId, materialTitle, originalName) {
   downloadingId.value = materialId;
+  console.log("📥 Starting download:", { materialId, materialTitle, originalName });
+
   try {
     // Call the download endpoint with blob response type
     const response = await api.get(`/materials/${materialId}/download`, {
       responseType: "blob",
     });
 
+    console.log("✅ Download response received:", {
+      status: response.status,
+      headers: response.headers,
+      dataSize: response.data?.size,
+    });
+
     // Create a download link
-    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const blob = new Blob([response.data]);
+    const url = window.URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
 
-    // Extract filename from Content-Disposition header or use title
+    // Extract filename from Content-Disposition header or use original name
     const contentDisposition = response.headers["content-disposition"];
-    let filename = `${materialTitle}.pdf`; // Default fallback
+    let filename = originalName || `${materialTitle}.pdf`;
+
     if (contentDisposition) {
-      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
-      if (filenameMatch && filenameMatch.length > 1) {
-        filename = filenameMatch[1];
+      const filenameMatch = contentDisposition.match(
+        /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/
+      );
+      if (filenameMatch && filenameMatch[1]) {
+        filename = filenameMatch[1].replace(/['"]/g, "");
       }
     }
+
+    console.log(" Downloading as:", filename);
 
     link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
+
+    console.log("✅ Download triggered successfully");
   } catch (error) {
-    console.error("Download failed:", error);
-    alert("Failed to download material. Please try again.");
+    console.error("❌ Download failed:", error);
+    console.error("Error details:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+    });
+
+    // Show user-friendly error message
+    let errorMessage = "Failed to download material. ";
+    if (error.response?.status === 404) {
+      errorMessage += "File not found on server. Please contact admin.";
+    } else if (error.response?.status === 500) {
+      errorMessage += "Server error. Please try again later.";
+    } else {
+      errorMessage += "Please try again.";
+    }
+    alert(errorMessage);
   } finally {
     downloadingId.value = null;
   }
