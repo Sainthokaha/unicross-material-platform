@@ -23,7 +23,6 @@
         </button>
       </template>
     </Sidebar>
-
     <main class="pt-20 md:pt-16 md:ml-72 p-4 md:p-8 min-h-screen">
       <!-- Header & Student Info -->
       <div class="mb-8">
@@ -69,7 +68,6 @@
           </span>
         </div>
       </div>
-
       <!-- ================= BROWSE MATERIALS TAB ================= -->
       <div v-if="activeTab === 'browse'">
         <!-- Search Bar -->
@@ -98,7 +96,6 @@
             class="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm shadow-sm transition duration-150 ease-in-out"
           />
         </div>
-
         <!-- Materials Grid -->
         <div v-if="materialsStore.loading" class="text-center py-12 text-gray-500">
           <svg
@@ -122,7 +119,6 @@
           </svg>
           Loading library materials...
         </div>
-
         <div
           v-else-if="filteredMaterials.length === 0"
           class="bg-white p-12 rounded-lg shadow-sm border border-gray-100 text-center"
@@ -149,7 +145,6 @@
             }}
           </p>
         </div>
-
         <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div
             v-for="m in filteredMaterials"
@@ -174,7 +169,6 @@
               <p class="text-sm text-gray-500 line-clamp-3 mb-4">
                 {{ m.description || "No description provided." }}
               </p>
-
               <div class="flex items-center gap-2 text-xs text-gray-400 mt-auto">
                 <svg
                   class="w-4 h-4"
@@ -192,15 +186,15 @@
                 <span>Uploaded by {{ m.uploader_name }}</span>
               </div>
             </div>
-
-            <!-- Card Footer / Download -->
+            <!-- ✅ UPDATED: Card Footer with Direct Download -->
             <div class="bg-gray-50 px-6 py-4 border-t border-gray-100">
-              <a
-                :href="m.file_url"
-                target="_blank"
-                class="w-full flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors shadow-sm"
+              <button
+                @click="handleDownload(m.id, m.title)"
+                :disabled="downloadingId === m.id"
+                class="w-full flex items-center justify-center gap-2 bg-primary-600 text-white px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg
+                  v-if="downloadingId !== m.id"
                   class="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
@@ -213,8 +207,23 @@
                     d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                   ></path>
                 </svg>
-                Download Material
-              </a>
+                <svg v-else class="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
+                </svg>
+                {{ downloadingId === m.id ? "Downloading..." : "Download Material" }}
+              </button>
             </div>
           </div>
         </div>
@@ -228,29 +237,65 @@ import { ref, computed, onMounted } from "vue";
 import { useMaterialsStore } from "../stores/materials";
 import { useAuthStore } from "../stores/auth";
 import Sidebar from "../components/Sidebar.vue";
+import api from "../api/axios";
 
 const materialsStore = useMaterialsStore();
 const authStore = useAuthStore();
-
 const activeTab = ref("browse");
 const searchQuery = ref("");
+const downloadingId = ref(null);
 
-// ✅ UPDATED: Smart search filtering perfectly aligned with backend logic
+// Smart search filtering
 const filteredMaterials = computed(() => {
   const query = searchQuery.value.toLowerCase().trim();
   if (!query) return materialsStore.materials;
-
   return materialsStore.materials.filter(
     (m) =>
       m.title.toLowerCase().includes(query) ||
       m.course_name.toLowerCase().includes(query) ||
-      (m.description && m.description.toLowerCase().includes(query)) || // ✅ Added description for backend consistency
+      (m.description && m.description.toLowerCase().includes(query)) ||
       m.uploader_name.toLowerCase().includes(query)
   );
 });
 
+// ✅ NEW: Direct Download Function
+async function handleDownload(materialId, materialTitle) {
+  downloadingId.value = materialId;
+  try {
+    // Call the download endpoint with blob response type
+    const response = await api.get(`/materials/${materialId}/download`, {
+      responseType: "blob",
+    });
+
+    // Create a download link
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+
+    // Extract filename from Content-Disposition header or use title
+    const contentDisposition = response.headers["content-disposition"];
+    let filename = `${materialTitle}.pdf`; // Default fallback
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (filenameMatch && filenameMatch.length > 1) {
+        filename = filenameMatch[1];
+      }
+    }
+
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error("Download failed:", error);
+    alert("Failed to download material. Please try again.");
+  } finally {
+    downloadingId.value = null;
+  }
+}
+
 onMounted(async () => {
-  // The backend automatically filters by student's department and 'approved' status
   await materialsStore.fetchMaterials();
 });
 </script>
