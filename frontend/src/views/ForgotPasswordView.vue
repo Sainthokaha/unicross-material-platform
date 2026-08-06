@@ -1,65 +1,47 @@
-<template>
-  <div class="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
-      <div class="text-center mb-8">
-        <img src="/unicross-logo.jpg" alt="UNICROSS" class="w-16 h-16 mx-auto mb-4 object-contain" />
-        <h1 class="text-2xl font-bold text-gray-900">Forgot Password?</h1>
-        <p class="text-sm text-gray-500 mt-1">Enter your email to receive a reset link</p>
-      </div>
+const forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
+        
+        // Security best practice: Always return success to prevent email enumeration attacks
+        if (users.length === 0) {
+            return res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+        }
 
-      <form @submit.prevent="handleForgotPassword" class="space-y-5">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-          <input 
-            v-model="form.email" 
-            type="email" 
-            required 
-            class="form-input" 
-            placeholder="your.email@unicross.edu.ng"
-          />
-        </div>
+        const user = users[0];
+        const resetToken = crypto.randomBytes(32).toString('hex');
+        const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
+        const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
 
-        <div v-if="message" :class="['px-4 py-3 rounded-lg text-sm border', isError ? 'bg-red-50 text-red-700 border-red-200' : 'bg-green-50 text-green-700 border-green-200']">
-          {{ message }}
-        </div>
+        await db.query(
+            'UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE id = ?',
+            [resetTokenHash, resetTokenExpiry, user.id]
+        );
 
-        <button type="submit" :disabled="loading" class="btn btn-primary w-full">
-          {{ loading ? 'Sending...' : 'Send Reset Link' }}
-        </button>
+        const frontendUrl = process.env.FRONTEND_URL || 'https://unicross-material-platform.vercel.app';
+        const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
 
-        <div class="text-center">
-          <router-link to="/login" class="text-sm text-blue-600 hover:text-blue-700 font-medium">
-            ← Back to Login
-          </router-link>
-        </div>
-      </form>
-    </div>
-  </div>
-</template>
+        // ✅ USE RESEND API (HTTPS) INSTEAD OF NODEMAILER (SMTP)
+        await resend.emails.send({
+            from: 'UNICROSS Platform <onboarding@resend.dev>', 
+            to: email,
+            subject: 'Password Reset Request',
+            html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                    <h2 style="color: #333;">Password Reset Request</h2>
+                    <p>Hello ${user.full_name},</p>
+                    <p>We received a request to reset your password for your UNICROSS Material Platform account. Click the button below to create a new password:</p>
+                    <a href="${resetUrl}" style="display: inline-block; padding: 14px 28px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold;">Reset Password</a>
+                    <p style="color: #666; font-size: 14px;">This link will expire in 1 hour.</p>
+                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
+                    <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email and your password will remain unchanged.</p>
+                </div>
+            `
+        });
 
-<script setup>
-import { ref } from 'vue'
-import api from '../api/axios'
-
-const form = ref({ email: '' })
-const loading = ref(false)
-const message = ref('')
-const isError = ref(false)
-
-async function handleForgotPassword() {
-  loading.value = true
-  message.value = ''
-  isError.value = false
-  
-  try {
-    await api.post('/auth/forgot-password', { email: form.value.email })
-    message.value = 'If an account exists with that email, a password reset link has been sent. Please check your inbox.'
-    form.value.email = ''
-  } catch (err) {
-    isError.value = true
-    message.value = err.response?.data?.message || 'Failed to send reset link. Please try again.'
-  } finally {
-    loading.value = false
-  }
-}
-</script>
+        res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
+    } catch (error) {
+        console.error('❌ FORGOT PASSWORD ERROR:', error);
+        res.status(500).json({ success: false, message: 'Server error while processing password reset.' });
+    }
+};
