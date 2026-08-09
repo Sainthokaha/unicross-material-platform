@@ -15,11 +15,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isStudent = computed(() => user.value?.role === 'student')
   const isLecturer = computed(() => user.value?.role === 'lecturer')
 
+  // 3. Login Function
   async function login(credentials) {
     loading.value = true
     error.value = null
     try {
-      // 🛡️ FORCE PLAIN OBJECT: Guarantees JSON serialization
+      // 🛡️ BULLETPROOF: Guarantee the payload is a proper JSON object
       const payload = {
         email: credentials.email,
         password: credentials.password
@@ -27,23 +28,20 @@ export const useAuthStore = defineStore('auth', () => {
       
       const response = await api.post('/auth/login', payload)
       const data = response.data
-      
-      if (data.success && data.token && data.user) {
-        token.value = data.token
-        user.value = data.user
+      const loginToken = data.token
+      const loginUser = data.user
+
+      if (loginToken && loginUser) {
+        token.value = loginToken
+        user.value = loginUser
         
-        localStorage.setItem('token', data.token)
-        localStorage.setItem('user', JSON.stringify(data.user))
-        
-        if (data.user.role === 'admin') router.push('/admin')
-        else if (data.user.role === 'student') router.push('/student-dashboard')
-        else if (data.user.role === 'lecturer') router.push('/lecturer-dashboard')
-        else router.push('/')
+        localStorage.setItem('token', loginToken)
+        localStorage.setItem('user', JSON.stringify(loginUser))
         
         return data
       }
     } catch (err) {
-      error.value = err.response?.data?.message || 'Login failed. Please check your credentials.'
+      error.value = err.response?.data?.message || 'Login failed.'
       throw err
     } finally {
       loading.value = false

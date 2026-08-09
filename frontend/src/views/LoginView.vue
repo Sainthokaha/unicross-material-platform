@@ -77,8 +77,10 @@
 
 <script setup>
 import { ref } from "vue";
+import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
+const router = useRouter();
 const authStore = useAuthStore();
 
 const email = ref("");
@@ -86,14 +88,43 @@ const password = ref("");
 const error = ref("");
 const loading = ref(false);
 
+// ✅ FIX: Force Vue to read the actual DOM values (Fixes Android Autofill ghosting)
+function syncMobileAutofill() {
+  const emailInput = document.querySelector('input[type="email"]');
+  const passwordInput = document.querySelector('input[type="password"]');
+  if (emailInput && emailInput.value) email.value = emailInput.value;
+  if (passwordInput && passwordInput.value) password.value = passwordInput.value;
+}
+
 async function handleLogin() {
+  // 1. Sync mobile autofill values just in case
+  syncMobileAutofill();
+
+  // 2. Frontend Validation
+  if (!email.value || !password.value) {
+    error.value = "Please enter both email and password.";
+    return;
+  }
+
   error.value = "";
   loading.value = true;
+
   try {
-    await authStore.login(email.value, password.value);
+    // ✅ FIX: Explicitly pass a structured object, not separate strings
+    await authStore.login({
+      email: email.value.trim(),
+      password: password.value,
+    });
+
+    // Redirect based on role (handled inside store, but we can force it here too)
+    const role = authStore.user?.role;
+    if (role === "admin") router.push("/admin");
+    else if (role === "student") router.push("/student-dashboard");
+    else if (role === "lecturer") router.push("/lecturer-dashboard");
+    else router.push("/");
   } catch (err) {
     error.value =
-      err.response?.data?.message || "Invalid email or password. Please try again.";
+      err.response?.data?.message || "Login failed. Please check your credentials.";
   } finally {
     loading.value = false;
   }
