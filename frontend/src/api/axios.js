@@ -1,24 +1,45 @@
-import axios from 'axios';
+import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
-});
+  // Dynamically use Vercel env var, fallback to live Render URL
+  baseURL: import.meta.env.VITE_API_URL || 'https://unicross-material-platform.onrender.com/api',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
+})
 
+// Request interceptor - attach token
 api.interceptors.request.use((config) => {
-  // 1. Attach the JWT token
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem('token')
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    config.headers.Authorization = `Bearer ${token}`
   }
   
-  // 2. ✅ CRITICAL FIX: If the payload is FormData, DELETE any forced Content-Type.
-  // This allows the browser to automatically set the correct 'multipart/form-data' 
-  // header WITH the required boundary string.
-  if (config.data instanceof FormData) {
-    delete config.headers['Content-Type'];
+  // 🛡️ FORCE JSON: Prevent Axios from accidentally sending form-urlencoded
+  if (config.data && !(config.data instanceof FormData)) {
+    config.headers['Content-Type'] = 'application/json'
   }
+  
+  return config
+}, (error) => {
+  return Promise.reject(error)
+})
 
-  return config;
-});
+// Response interceptor - handle errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      // Only redirect if not already on login page
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
+    }
+    return Promise.reject(error)
+  }
+)
 
-export default api;
+export default api
