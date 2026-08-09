@@ -1,21 +1,31 @@
 <template>
   <div
-    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100"
+    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100 py-12 px-4"
   >
-    <div class="card w-full max-w-md">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+      <!-- Header -->
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900">Material Sharing Platform</h1>
-        <p class="text-gray-600 mt-2">Sign in to your account</p>
+        <img
+          src="/unicross-logo.jpg"
+          alt="UNICROSS"
+          class="w-16 h-16 mx-auto mb-4 object-contain"
+        />
+        <h1 class="text-2xl font-bold text-gray-900">Welcome Back</h1>
+        <p class="text-sm text-gray-500 mt-1">Sign in to UNICROSS Material Sharing</p>
       </div>
-      <form @submit.prevent="handleLogin" class="space-y-4">
+
+      <!-- Login Form -->
+      <form @submit.prevent="handleLogin" class="space-y-5">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Email Address</label
+          >
           <input
             v-model="email"
             type="email"
             required
             class="form-input"
-            placeholder="admin@platform.edu"
+            placeholder="name@gmail.com"
           />
         </div>
         <div>
@@ -28,28 +38,38 @@
             placeholder="••••••••"
           />
         </div>
-
-        <!-- ✅ NEW: Forgot Password Link -->
-        <div class="flex items-center justify-end">
-          <router-link
-            to="/forgot-password"
-            class="text-sm text-primary-600 hover:underline font-medium"
-            >Forgot password?</router-link
-          >
+        <div
+          v-if="error"
+          class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"
+        >
+          {{ error }}
         </div>
-
-        <p v-if="error" class="text-red-600 text-sm bg-red-50 p-3 rounded">{{ error }}</p>
         <button
           type="submit"
           :disabled="loading"
           class="btn btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {{ loading ? "Logging in..." : "Login" }}
+          {{ loading ? "Signing in..." : "Sign In" }}
         </button>
       </form>
-      <div class="mt-6 text-center text-sm text-gray-600">
-        <p>Admin credentials:</p>
-        <p class="font-mono text-xs mt-1">admin@platform.edu / Admin@1234</p>
+
+      <!-- ✅ LINKS: Forgot Password + Register -->
+      <div class="mt-6 text-center space-y-2">
+        <router-link
+          to="/forgot-password"
+          class="text-sm text-primary-600 hover:underline font-medium"
+        >
+          Forgot your password?
+        </router-link>
+        <p class="text-sm text-gray-500">
+          Don't have an account?
+          <router-link
+            to="/register"
+            class="text-primary-600 hover:underline font-medium"
+          >
+            Register here
+          </router-link>
+        </p>
       </div>
     </div>
   </div>
@@ -57,10 +77,8 @@
 
 <script setup>
 import { ref } from "vue";
-import { useRouter } from "vue-router";
 import { useAuthStore } from "../stores/auth";
 
-const router = useRouter();
 const authStore = useAuthStore();
 
 const email = ref("");
@@ -72,9 +90,10 @@ async function handleLogin() {
   error.value = "";
   loading.value = true;
   try {
-    await authStore.login({ email: email.value, password: password.value });
+    await authStore.login(email.value, password.value);
   } catch (err) {
-    error.value = err.response?.data?.message || "Login failed. Please try again.";
+    error.value =
+      err.response?.data?.message || "Invalid email or password. Please try again.";
   } finally {
     loading.value = false;
   }
