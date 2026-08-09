@@ -1,47 +1,74 @@
-const forgotPassword = async (req, res) => {
-    try {
-        const { email } = req.body;
-        const [users] = await db.query('SELECT * FROM users WHERE email = ?', [email]);
-        
-        // Security best practice: Always return success to prevent email enumeration attacks
-        if (users.length === 0) {
-            return res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
-        }
+<template>
+  <div
+    class="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-primary-100"
+  >
+    <div class="card w-full max-w-md">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Forgot Password?</h1>
+        <p class="text-gray-600 mt-2">Enter your email to receive a reset link.</p>
+      </div>
+      <form @submit.prevent="handleSubmit" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Email Address</label
+          >
+          <input
+            v-model="email"
+            type="email"
+            required
+            class="form-input"
+            placeholder="you@example.com"
+          />
+        </div>
+        <p
+          v-if="message"
+          :class="[
+            'text-sm p-3 rounded',
+            isError ? 'text-red-600 bg-red-50' : 'text-green-600 bg-green-50',
+          ]"
+        >
+          {{ message }}
+        </p>
+        <button
+          type="submit"
+          :disabled="loading"
+          class="btn btn-primary w-full disabled:opacity-50"
+        >
+          {{ loading ? "Sending..." : "Send Reset Link" }}
+        </button>
+      </form>
+      <p class="mt-6 text-center text-sm text-gray-600">
+        Remember your password?
+        <router-link to="/login" class="text-primary-600 hover:underline font-medium"
+          >Login</router-link
+        >
+      </p>
+    </div>
+  </div>
+</template>
 
-        const user = users[0];
-        const resetToken = crypto.randomBytes(32).toString('hex');
-        const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-        const resetTokenExpiry = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+<script setup>
+import { ref } from "vue";
+import api from "../api/axios";
 
-        await db.query(
-            'UPDATE users SET reset_password_token = ?, reset_password_expires = ? WHERE id = ?',
-            [resetTokenHash, resetTokenExpiry, user.id]
-        );
+const email = ref("");
+const message = ref("");
+const isError = ref(false);
+const loading = ref(false);
 
-        const frontendUrl = process.env.FRONTEND_URL || 'https://unicross-material-platform.vercel.app';
-        const resetUrl = `${frontendUrl}/reset-password?token=${resetToken}`;
-
-        // ✅ USE RESEND API (HTTPS) INSTEAD OF NODEMAILER (SMTP)
-        await resend.emails.send({
-            from: 'UNICROSS Platform <onboarding@resend.dev>', 
-            to: email,
-            subject: 'Password Reset Request',
-            html: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                    <h2 style="color: #333;">Password Reset Request</h2>
-                    <p>Hello ${user.full_name},</p>
-                    <p>We received a request to reset your password for your UNICROSS Material Platform account. Click the button below to create a new password:</p>
-                    <a href="${resetUrl}" style="display: inline-block; padding: 14px 28px; background-color: #2563eb; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold;">Reset Password</a>
-                    <p style="color: #666; font-size: 14px;">This link will expire in 1 hour.</p>
-                    <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;">
-                    <p style="color: #999; font-size: 12px;">If you didn't request this, please ignore this email and your password will remain unchanged.</p>
-                </div>
-            `
-        });
-
-        res.status(200).json({ success: true, message: 'If that email exists, a reset link has been sent.' });
-    } catch (error) {
-        console.error('❌ FORGOT PASSWORD ERROR:', error);
-        res.status(500).json({ success: false, message: 'Server error while processing password reset.' });
-    }
-};
+async function handleSubmit() {
+  message.value = "";
+  isError.value = false;
+  loading.value = true;
+  try {
+    const response = await api.post("/auth/forgot-password", { email: email.value });
+    message.value =
+      response.data.message || "If that email exists, a reset link has been sent.";
+  } catch (err) {
+    isError.value = true;
+    message.value = err.response?.data?.message || "Failed to send reset link.";
+  } finally {
+    loading.value = false;
+  }
+}
+</script>

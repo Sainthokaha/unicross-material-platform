@@ -1,29 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
-// ✅ Import all views
-import HomePage from '../views/HomePage.vue'
-import LoginView from '../views/LoginView.vue'
-import RegisterView from '../views/RegisterView.vue'
-import ForgotPasswordView from '../views/ForgotPasswordView.vue'
-import ResetPasswordView from '../views/ResetPasswordView.vue'
-import StudentDashboard from '../views/StudentDashboard.vue'
-import LecturerDashboard from '../views/LecturerDashboard.vue'
-import AdminPanel from '../views/AdminPanel.vue'
-import ProfileView from '../views/ProfileView.vue'
-import NotFound from '../views/NotFound.vue'
-
 const routes = [
-  { path: '/', name: 'Home', component: HomePage },
-  { path: '/login', name: 'Login', component: LoginView, meta: { requiresGuest: true } },
-  { path: '/register', name: 'Register', component: RegisterView, meta: { requiresGuest: true } },
-  { path: '/forgot-password', name: 'ForgotPassword', component: ForgotPasswordView, meta: { requiresGuest: true } },
-  { path: '/reset-password', name: 'ResetPassword', component: ResetPasswordView, meta: { requiresGuest: true } },
-  { path: '/student-dashboard', name: 'StudentDashboard', component: StudentDashboard, meta: { requiresAuth: true, role: 'student' } },
-  { path: '/lecturer-dashboard', name: 'LecturerDashboard', component: LecturerDashboard, meta: { requiresAuth: true, role: 'lecturer' } },
-  { path: '/admin', name: 'AdminPanel', component: AdminPanel, meta: { requiresAuth: true, role: 'admin' } },
-  { path: '/profile', name: 'Profile', component: ProfileView, meta: { requiresAuth: true } },
-  { path: '/:pathMatch(.*)*', name: 'NotFound', component: NotFound }
+  { path: '/login', name: 'Login', component: () => import('../views/LoginView.vue'), meta: { requiresGuest: true } },
+  { path: '/forgot-password', name: 'ForgotPassword', component: () => import('../views/ForgotPasswordView.vue'), meta: { requiresGuest: true } },
+  { path: '/reset-password', name: 'ResetPassword', component: () => import('../views/ResetPasswordView.vue'), meta: { requiresGuest: true } },
+  { path: '/register', name: 'Register', component: () => import('../views/RegisterView.vue'), meta: { requiresGuest: true } },
+  { path: '/admin', name: 'Admin', component: () => import('../views/AdminPanel.vue'), meta: { requiresAuth: true, role: 'admin' } },
+  { path: '/lecturer-dashboard', name: 'Lecturer', component: () => import('../views/LecturerDashboard.vue'), meta: { requiresAuth: true, role: 'lecturer' } },
+  { path: '/student-dashboard', name: 'Student', component: () => import('../views/StudentDashboard.vue'), meta: { requiresAuth: true, role: 'student' } },
+  { path: '/profile', name: 'Profile', component: () => import('../views/ProfileView.vue'), meta: { requiresAuth: true } },
+  { path: '/', redirect: '/login' },
+  { path: '/:pathMatch(.*)*', name: 'NotFound', component: () => import('../views/NotFound.vue') }
 ]
 
 const router = createRouter({
@@ -31,43 +19,26 @@ const router = createRouter({
   routes
 })
 
-// ✅ BULLETPROOF NAVIGATION GUARD
 router.beforeEach((to, from, next) => {
-  // 1. Check localStorage directly (instant and synchronous, survives refresh)
-  const token = localStorage.getItem('token')
-  const savedUser = localStorage.getItem('user')
-  const user = savedUser ? JSON.parse(savedUser) : null
+  const authStore = useAuthStore()
   
-  const isAuthenticated = !!token
-  const userRole = user?.role
-
-  // 2. Routes that require authentication
-  if (to.meta.requiresAuth) {
-    if (!isAuthenticated || !userRole) {
-      next('/login') // Not logged in, go to login
-    } else if (to.meta.role && to.meta.role !== userRole) {
-      // Logged in, but wrong role. Redirect to their correct dashboard
-      if (userRole === 'student') next('/student-dashboard')
-      else if (userRole === 'lecturer') next('/lecturer-dashboard')
-      else if (userRole === 'admin') next('/admin')
-      else next('/login')
-    } else {
-      next() // All good, let them through
-    }
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    next('/login')
   } 
-  // 3. Routes that require being a guest (not logged in)
-  else if (to.meta.requiresGuest) {
-    if (isAuthenticated && userRole) {
-      // Already logged in, redirect to their dashboard
-      if (userRole === 'student') next('/student-dashboard')
-      else if (userRole === 'lecturer') next('/lecturer-dashboard')
-      else if (userRole === 'admin') next('/admin')
-      else next('/')
-    } else {
-      next() // Not logged in, let them see the login/register page
-    }
+  else if (to.meta.requiresGuest && authStore.isAuthenticated) {
+    const role = authStore.user?.role
+    if (role === 'admin') next('/admin')
+    else if (role === 'lecturer') next('/lecturer-dashboard')
+    else if (role === 'student') next('/student-dashboard')
+    else next('/')
   } 
-  // 4. Public routes
+  else if (to.meta.role && authStore.user?.role !== to.meta.role) {
+    const role = authStore.user?.role
+    if (role === 'admin') next('/admin')
+    else if (role === 'lecturer') next('/lecturer-dashboard')
+    else if (role === 'student') next('/student-dashboard')
+    else next('/login')
+  } 
   else {
     next()
   }
