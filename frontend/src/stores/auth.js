@@ -4,18 +4,20 @@ import api from '../api/axios'
 import router from '../router'
 
 export const useAuthStore = defineStore('auth', () => {
+  // State
   const savedUser = localStorage.getItem('user')
   const user = ref(savedUser ? JSON.parse(savedUser) : null)
   const token = ref(localStorage.getItem('token') || null)
   const loading = ref(false)
   const error = ref(null)
 
+  // Getters
   const isAuthenticated = computed(() => !!token.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
   const isStudent = computed(() => user.value?.role === 'student')
   const isLecturer = computed(() => user.value?.role === 'lecturer')
 
-  // 3. Login Function
+  // Actions
   async function login(credentials) {
     loading.value = true
     error.value = null
@@ -41,7 +43,7 @@ export const useAuthStore = defineStore('auth', () => {
         return data
       }
     } catch (err) {
-      error.value = err.response?.data?.message || 'Login failed.'
+      error.value = err.response?.data?.message || 'Login failed. Please check your credentials.'
       throw err
     } finally {
       loading.value = false
@@ -88,8 +90,17 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   return {
-    user, token, loading, error,
-    isAuthenticated, isAdmin, isStudent, isLecturer,
-    login, fetchProfile, logout, updateProfile
+    user, 
+    token, 
+    loading, 
+    error,
+    isAuthenticated, 
+    isAdmin, 
+    isStudent, 
+    isLecturer,
+    login, 
+    fetchProfile, 
+    logout, 
+    updateProfile
   }
 })

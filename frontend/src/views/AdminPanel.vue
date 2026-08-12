@@ -815,14 +815,22 @@ function handleFileChange(e) {
 async function handleUpload() {
   uploadError.value = "";
   uploading.value = true;
+
   try {
+    // ✅ CRITICAL: Create a new FormData object
     const formData = new FormData();
+
+    // ✅ CRITICAL: Append the actual File object, not a string or object
     formData.append("file", uploadForm.value.file);
     formData.append("title", uploadForm.value.title);
     formData.append("description", uploadForm.value.description || "");
     formData.append("course_id", uploadForm.value.course_id);
     formData.append("semester", uploadForm.value.semester);
+
+    // ✅ CRITICAL: Pass the FormData object directly to the store
     await materialsStore.uploadMaterial(formData);
+
+    // Reset form on success
     showUpload.value = false;
     uploadForm.value = {
       title: "",
@@ -833,7 +841,9 @@ async function handleUpload() {
       file: null,
     };
   } catch (err) {
-    uploadError.value = err.response?.data?.message || "Upload failed.";
+    uploadError.value =
+      err.response?.data?.message ||
+      "Upload failed. Please check the file and try again.";
   } finally {
     uploading.value = false;
   }

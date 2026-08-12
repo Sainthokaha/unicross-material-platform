@@ -10,22 +10,23 @@ export const useMaterialsStore = defineStore('materials', () => {
     loading.value = true
     try {
       const response = await api.get('/materials')
-      materials.value = response.data.materials || []
+      materials.value = response.data.materials || response.data || []
     } catch (err) {
-      console.error('❌ Fetch Materials Error:', err)
+      console.error('Fetch materials error:', err)
     } finally {
       loading.value = false
     }
   }
 
+  // ✅ CRITICAL: Accept FormData and pass it directly to axios without modifying headers
   async function uploadMaterial(formData) {
     loading.value = true
     try {
-      // ✅ DO NOT add { headers: { 'Content-Type': 'multipart/form-data' } } here.
-      // Axios handles it automatically when it sees the FormData object.
+      // Do NOT add headers here. Axios will automatically set the correct multipart/form-data boundary
       await api.post('/materials', formData)
       await fetchMaterials()
     } catch (err) {
+      console.error('Upload error:', err)
       throw err
     } finally {
       loading.value = false
@@ -38,6 +39,7 @@ export const useMaterialsStore = defineStore('materials', () => {
       await api.patch(`/materials/${id}/approve`)
       await fetchMaterials()
     } catch (err) {
+      console.error('Approve error:', err)
       throw err
     } finally {
       loading.value = false
@@ -50,6 +52,7 @@ export const useMaterialsStore = defineStore('materials', () => {
       await api.patch(`/materials/${id}/reject`, { reason })
       await fetchMaterials()
     } catch (err) {
+      console.error('Reject error:', err)
       throw err
     } finally {
       loading.value = false

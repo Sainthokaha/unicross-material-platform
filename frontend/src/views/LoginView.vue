@@ -38,26 +38,50 @@
             placeholder="••••••••"
           />
         </div>
+
+        <!-- Error Message -->
         <div
           v-if="error"
           class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm"
         >
           {{ error }}
         </div>
+
+        <!-- Submit Button -->
         <button
           type="submit"
           :disabled="loading"
-          class="btn btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+          class="btn btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
+          <svg
+            v-if="loading"
+            class="animate-spin h-4 w-4 text-white"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
           {{ loading ? "Signing in..." : "Sign In" }}
         </button>
       </form>
 
-      <!-- ✅ LINKS: Forgot Password + Register -->
+      <!-- Links: Forgot Password + Register -->
       <div class="mt-6 text-center space-y-2">
         <router-link
           to="/forgot-password"
-          class="text-sm text-primary-600 hover:underline font-medium"
+          class="text-sm text-primary-600 hover:underline font-medium block"
         >
           Forgot your password?
         </router-link>
@@ -88,7 +112,7 @@ const password = ref("");
 const error = ref("");
 const loading = ref(false);
 
-// ✅ FIX: Force Vue to read the actual DOM values (Fixes Android Autofill ghosting)
+// ✅ FIX: Force Vue to read the actual DOM values (Fixes Android/Mobile Autofill ghosting)
 function syncMobileAutofill() {
   const emailInput = document.querySelector('input[type="email"]');
   const passwordInput = document.querySelector('input[type="password"]');
@@ -97,7 +121,7 @@ function syncMobileAutofill() {
 }
 
 async function handleLogin() {
-  // 1. Sync mobile autofill values just in case
+  // 1. Sync mobile autofill values just in case the browser bypassed Vue's reactivity
   syncMobileAutofill();
 
   // 2. Frontend Validation
@@ -116,7 +140,7 @@ async function handleLogin() {
       password: password.value,
     });
 
-    // Redirect based on role (handled inside store, but we can force it here too)
+    // Redirect based on role (handled inside store, but we can force it here too for safety)
     const role = authStore.user?.role;
     if (role === "admin") router.push("/admin");
     else if (role === "student") router.push("/student-dashboard");
