@@ -160,7 +160,7 @@
                   {{ m.course_name }}
                 </span>
                 <span class="text-xs text-gray-400">{{
-                  m.semester === "1" ? "Harmattan" : "Rain"
+                  m.semester === "1" ? "First Semester" : "Second Semester"
                 }}</span>
               </div>
               <h3 class="text-lg font-bold text-gray-900 mb-2 line-clamp-2">
