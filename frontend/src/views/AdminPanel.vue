@@ -175,8 +175,8 @@
               <label class="block text-sm font-medium text-gray-700 mb-1">Semester</label>
               <select v-model="uploadForm.semester" required class="form-input">
                 <option value="">Select Semester</option>
-                <option value="1">First Semester (Harmattan)</option>
-                <option value="2">Second Semester (Rain)</option>
+                <option value="1">First Semester</option>
+                <option value="2">Second Semester</option>
               </select>
             </div>
             <div>

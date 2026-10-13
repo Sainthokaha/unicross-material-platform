@@ -147,8 +147,8 @@
                 >
                 <select v-model="uploadForm.semester" required class="form-input">
                   <option value="">Select Semester</option>
-                  <option value="1">First Semester (Harmattan)</option>
-                  <option value="2">Second Semester (Rain)</option>
+                  <option value="1">First Semester</option>
+                  <option value="2">Second Semester</option>
                 </select>
               </div>
             </div>
@@ -255,7 +255,7 @@
                   <td class="px-6 py-4 font-medium text-gray-900">{{ m.title }}</td>
                   <td class="px-6 py-4 text-gray-600">{{ m.course_name }}</td>
                   <td class="px-6 py-4 text-gray-600">
-                    {{ m.semester === "1" ? "Harmattan" : "Rain" }}
+                    {{ m.semester === "1" ? "First Semester" : "Second Semester" }}
                   </td>
                   <td class="px-6 py-4">
                     <span
