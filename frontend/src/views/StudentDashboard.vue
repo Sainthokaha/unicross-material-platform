@@ -23,6 +23,7 @@
         </button>
       </template>
     </Sidebar>
+
     <main class="pt-20 md:pt-16 md:ml-72 p-4 md:p-8 min-h-screen">
       <!-- Header & Student Info -->
       <div class="mb-8">
@@ -68,6 +69,7 @@
           </span>
         </div>
       </div>
+
       <!-- ================= BROWSE MATERIALS TAB ================= -->
       <div v-if="activeTab === 'browse'">
         <!-- Search Bar -->
@@ -96,6 +98,7 @@
             class="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg leading-5 bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm shadow-sm transition duration-150 ease-in-out"
           />
         </div>
+
         <!-- Materials Grid -->
         <div v-if="materialsStore.loading" class="text-center py-12 text-gray-500">
           <svg
@@ -119,6 +122,7 @@
           </svg>
           Loading library materials...
         </div>
+
         <div
           v-else-if="filteredMaterials.length === 0"
           class="bg-white p-12 rounded-lg shadow-sm border border-gray-100 text-center"
@@ -145,6 +149,7 @@
             }}
           </p>
         </div>
+
         <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div
             v-for="m in filteredMaterials"
@@ -186,7 +191,8 @@
                 <span>Uploaded by {{ m.uploader_name }}</span>
               </div>
             </div>
-            <!-- ✅ UPDATED: Card Footer with Direct Download -->
+
+            <!-- Card Footer with Direct Download -->
             <div class="bg-gray-50 px-6 py-4 border-t border-gray-100">
               <button
                 @click="handleDownload(m.id, m.title, m.original_name)"
@@ -258,7 +264,7 @@ const filteredMaterials = computed(() => {
   );
 });
 
-// ✅ NEW: Direct Download Function with Comprehensive Error Handling
+// Direct Download Function with Blob Technology & Confirmation Interface
 async function handleDownload(materialId, materialTitle, originalName) {
   downloadingId.value = materialId;
   console.log("📥 Starting download:", { materialId, materialTitle, originalName });
@@ -294,8 +300,9 @@ async function handleDownload(materialId, materialTitle, originalName) {
       }
     }
 
-    console.log(" Downloading as:", filename);
+    console.log("Downloading as:", filename);
 
+    // Force the browser to download the file
     link.setAttribute("download", filename);
     document.body.appendChild(link);
     link.click();
@@ -303,6 +310,9 @@ async function handleDownload(materialId, materialTitle, originalName) {
     window.URL.revokeObjectURL(url);
 
     console.log("✅ Download triggered successfully");
+
+    // ✅ DOWNLOAD CONFIRMATION INTERFACE
+    alert(`✅ DOWNLOAD SUCCESSFUL!\n\nFile: ${filename}\nYour download has started.`);
   } catch (error) {
     console.error("❌ Download failed:", error);
     console.error("Error details:", {

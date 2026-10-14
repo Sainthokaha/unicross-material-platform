@@ -93,17 +93,37 @@ const rejectMaterial = async (req, res) => {
 const downloadMaterial = async (req, res) => {
   try {
     const { id } = req.params;
-    const [materials] = await pool.query('SELECT * FROM materials WHERE id = ?', [id]);
-    if (materials.length === 0) return res.status(404).json({ success: false, message: 'Material not found' });
+    const userId = req.user.id;
+
+    const [materials] = await db.query(
+      'SELECT * FROM materials WHERE id = ? AND status = ?', 
+      [id, 'approved']
+    );
+
+    if (materials.length === 0) {
+      return res.status(404).json({ success: false, message: 'Material not found or not approved for download' });
+    }
+
     const material = materials[0];
-    const filePath = path.join(__dirname, '../../uploads', material.file_path);
-    if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, message: 'File not found on server' });
-    await pool.query('UPDATE materials SET download_count = download_count + 1 WHERE id = ?', [id]);
-    await logAction(req.user.id, 'MATERIAL_DOWNLOAD', 'materials', id, `Downloaded: ${material.title}`, req);
-    res.download(filePath, material.original_name);
-  } catch (err) {
-    console.error('Download error:', err);
-    res.status(500).json({ success: false, message: 'Failed to download material' });
+    const fileName = material.file_path.split('/').pop();
+    const filePath = path.join(__dirname, '../../uploads', fileName);
+
+    await db.query(
+      'UPDATE materials SET download_count = download_count + 1 WHERE id = ?', 
+      [id]
+    );
+
+    await logAction(userId, 'MATERIAL_DOWNLOAD', 'materials', id, `Downloaded: ${material.original_name}`, req);
+
+    res.download(filePath, material.original_name, (err) => {
+      if (err) {
+        console.error('❌ File download error:', err);
+        res.status(500).json({ success: false, message: 'Error downloading file from server' });
+      }
+    });
+  } catch (error) {
+    console.error('❌ Download Material Error:', error);
+    res.status(500).json({ success: false, message: 'Server error during download' });
   }
 };
 
