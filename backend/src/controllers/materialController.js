@@ -53,11 +53,12 @@ const uploadMaterial = async (req, res) => {
   }
 };
 
-// 2. GET MATERIALS (Admin sees all, Students/Lecturers see only approved)
+// 2. GET MATERIALS (Role-based visibility)
 const getMaterials = async (req, res) => {
   try {
     const { status, course_id, department_id, semester, search } = req.query;
-    const userRole = req.user.role; // Check if user is admin
+    const userRole = req.user.role;
+    const userId = req.user.id;
     
     let query = `
       SELECT m.*, u.full_name as uploader_name, c.name as course_name, c.code as course_code, d.name as department_name
@@ -69,20 +70,24 @@ const getMaterials = async (req, res) => {
     `;
     const params = [];
 
-    // Filter by status
+    // 1. Handle Role-Based Visibility
+    if (userRole === 'student') {
+      // Students only see approved materials
+      query += " AND m.status = 'approved'";
+    } else if (userRole === 'lecturer') {
+      // Lecturers see ALL their own materials (pending, approved, rejected)
+      query += " AND m.uploader_id = ?";
+      params.push(userId);
+    }
+    // Admins see all materials (no extra filter added here)
+
+    // 2. Handle Explicit Status Filter (e.g. Admin filtering by 'pending')
     if (status) {
-      // If a specific status is requested (e.g. ?status=pending), use it
       query += ' AND m.status = ?';
       params.push(status);
-    } else {
-      // If no status is requested:
-      // - Students/Lecturers only see 'approved' materials
-      // - Admins see ALL materials (pending, approved, rejected)
-      if (userRole !== 'admin') {
-        query += " AND m.status = 'approved'";
-      }
     }
 
+    // 3. Other Filters
     if (course_id) {
       query += ' AND m.course_id = ?';
       params.push(course_id);
