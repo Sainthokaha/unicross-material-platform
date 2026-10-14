@@ -59,8 +59,7 @@ const getMaterials = async (req, res) => {
     const { status, course_id, department_id, semester, search } = req.query;
     const userRole = req.user.role;
     const userId = req.user.id;
-    
-    // Changed JOIN to LEFT JOIN to prevent materials from disappearing if links are broken
+
     let query = `
       SELECT m.*, u.full_name as uploader_name, c.name as course_name, c.code as course_code, d.name as department_name
       FROM materials m
@@ -71,43 +70,45 @@ const getMaterials = async (req, res) => {
     `;
     const params = [];
 
-    // 1. Handle Role-Based Visibility
-    if (userRole === 'student') {
-      query += " AND m.status = 'approved'";
+    // STRICT role gating: admin = all, lecturer = own uploads only, student = approved only
+    if (userRole === 'admin') {
+      // no extra filter: admin sees every material of every uploader and status
     } else if (userRole === 'lecturer') {
       query += " AND m.uploader_id = ?";
       params.push(userId);
+    } else {
+      // student (or any unexpected role): only approved materials
+      query += " AND m.status = 'approved'";
     }
 
-    // 2. Handle Explicit Status Filter
+    // Optional explicit status filter (used mainly by admin dashboard tabs)
     if (status) {
-      query += ' AND m.status = ?';
+      query += " AND m.status = ?";
       params.push(status);
     }
 
-    // 3. Other Filters
     if (course_id) {
-      query += ' AND m.course_id = ?';
+      query += " AND m.course_id = ?";
       params.push(course_id);
     }
 
     if (department_id) {
-      query += ' AND m.department_id = ?';
+      query += " AND m.department_id = ?";
       params.push(department_id);
     }
 
     if (semester) {
-      query += ' AND m.semester = ?';
+      query += " AND m.semester = ?";
       params.push(semester);
     }
 
     if (search) {
-      query += ' AND (m.title LIKE ? OR m.description LIKE ?)';
+      query += " AND (m.title LIKE ? OR m.description LIKE ?)";
       const searchTerm = `%${search}%`;
       params.push(searchTerm, searchTerm);
     }
 
-    query += ' ORDER BY m.created_at DESC';
+    query += " ORDER BY m.created_at DESC";
 
     const [materials] = await db.query(query, params);
     res.status(200).json({ success: true, materials });
