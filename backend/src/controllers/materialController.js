@@ -1,96 +1,158 @@
-const pool = require('../config/db');
+const db = require('../config/db');
 const path = require('path');
-const fs = require('fs');
 const { logAction } = require('../utils/auditLogger');
 
+// UPLOAD MATERIAL
 const uploadMaterial = async (req, res) => {
   try {
     const { title, description, course_id, semester } = req.body;
-    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-    if (!title || !course_id || !semester) return res.status(400).json({ success: false, message: 'Title, course, and semester are required' });
-    const uploaded_by = req.user.id;
-    const file_path = req.file.filename;
-    const original_name = req.file.originalname;
-    const [result] = await pool.query(
-      `INSERT INTO materials (title, description, course_id, semester, file_path, original_name, uploaded_by, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')`,
-      [title, description || '', course_id, semester, file_path, original_name, uploaded_by]
-    );
-    await logAction(uploaded_by, 'MATERIAL_UPLOAD', 'materials', result.insertId, `Uploaded: ${title}`, req);
-    res.status(201).json({ success: true, message: 'Material uploaded successfully', id: result.insertId });
-  } catch (err) {
-    console.error('❌ Upload error:', err);
-    res.status(500).json({ success: false, message: 'Failed to upload material: ' + err.message });
-  }
-};
+    const uploader_id = req.user.id;
 
-const getMaterials = async (req, res) => {
-  try {
-    let query = `SELECT m.*, c.name as course_name, c.department_id, d.name as department_name, u.full_name as uploader_name FROM materials m JOIN courses c ON m.course_id = c.id LEFT JOIN departments d ON c.department_id = d.id JOIN users u ON m.uploaded_by = u.id`;
-    const params = [];
-    const conditions = [];
-
-    if (req.user.role === 'lecturer') { 
-      conditions.push('m.uploaded_by = ?'); 
-      params.push(req.user.id); 
-    } 
-    else if (req.user.role === 'student') { 
-      conditions.push("m.status = 'approved'"); 
-      
-      // ✅ CRITICAL FIX: Fetch fresh department_id from DB to bypass stale JWT token
-      const [studentData] = await pool.query('SELECT department_id FROM users WHERE id = ?', [req.user.id]);
-      const studentDeptId = studentData[0]?.department_id;
-
-      if (studentDeptId) {
-        conditions.push('c.department_id = ?');
-        params.push(studentDeptId);
-      } else {
-        // If student has no department assigned, safely return empty array
-        conditions.push('1 = 0'); 
-      }
+    if (!title || !course_id || !semester || !req.file) {
+      return res.status(400).json({ success: false, message: 'Please provide all required fields and file' });
     }
 
-    let whereClause = conditions.length > 0 ? ' WHERE ' + conditions.join(' AND ') : '';
-    const dataQuery = `${query} ${whereClause} ORDER BY m.created_at DESC`;
-    const [materials] = await pool.query(dataQuery, params);
+    const file = req.file;
+    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
     
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
-    const formatted = materials.map(m => ({ ...m, file_url: `${baseUrl}/uploads/${m.file_path}` }));
-    res.json({ success: true, materials: formatted });
-  } catch (err) {
-    console.error('Fetch materials error:', err);
-    res.status(500).json({ success: false, message: 'Failed to fetch materials' });
+    if (!allowedTypes.includes(file.mimetype)) {
+      return res.status(400).json({ success: false, message: 'Invalid file type. Only PDF, DOC, DOCX, PPT, PPTX allowed' });
+    }
+
+    const maxSize = 50 * 1024 * 1024;
+    if (file.size > maxSize) {
+      return res.status(400).json({ success: false, message: 'File size must not exceed 50MB' });
+    }
+
+    const [courseResults] = await db.query('SELECT department_id FROM courses WHERE id = ?', [course_id]);
+    if (courseResults.length === 0) {
+      return res.status(404).json({ success: false, message: 'Course not found' });
+    }
+
+    const department_id = courseResults[0].department_id;
+    const file_path = `/uploads/${file.filename}`;
+    const original_name = file.originalname;
+
+    const [result] = await db.query(
+      `INSERT INTO materials (title, description, file_path, original_name, uploader_id, department_id, course_id, semester, status) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')`,
+      [title, description || null, file_path, original_name, uploader_id, department_id, course_id, semester]
+    );
+
+    await logAction(uploader_id, 'MATERIAL_UPLOAD', 'materials', result.insertId, `Material uploaded: ${title}`, req);
+
+    res.status(201).json({ 
+      success: true, 
+      message: 'Material uploaded successfully and pending approval', 
+      materialId: result.insertId 
+    });
+  } catch (error) {
+    console.error('❌ Upload Material Error:', error);
+    res.status(500).json({ success: false, message: 'Server error during material upload' });
   }
 };
 
+// GET MATERIALS (Matches your materialRoutes.js import)
+const getMaterials = async (req, res) => {
+  try {
+    const { course_id, department_id, semester, search } = req.query;
+    
+    let query = `
+      SELECT m.*, u.full_name as uploader_name, c.name as course_name, c.code as course_code, d.name as department_name
+      FROM materials m
+      JOIN users u ON m.uploader_id = u.id
+      JOIN courses c ON m.course_id = c.id
+      JOIN departments d ON m.department_id = d.id
+      WHERE m.status = 'approved'
+    `;
+
+    const params = [];
+
+    if (course_id) {
+      query += ' AND m.course_id = ?';
+      params.push(course_id);
+    }
+
+    if (department_id) {
+      query += ' AND m.department_id = ?';
+      params.push(department_id);
+    }
+
+    if (semester) {
+      query += ' AND m.semester = ?';
+      params.push(semester);
+    }
+
+    if (search) {
+      query += ' AND (m.title LIKE ? OR m.description LIKE ?)';
+      const searchTerm = `%${search}%`;
+      params.push(searchTerm, searchTerm);
+    }
+
+    query += ' ORDER BY m.created_at DESC';
+
+    const [materials] = await db.query(query, params);
+
+    res.status(200).json({ success: true, materials });
+  } catch (error) {
+    console.error('❌ Get Materials Error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching materials' });
+  }
+};
+
+// APPROVE MATERIAL (Admin)
 const approveMaterial = async (req, res) => {
   try {
     const { id } = req.params;
-    const [result] = await pool.query("UPDATE materials SET status = 'approved' WHERE id = ?", [id]);
-    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Material not found' });
-    await logAction(req.user.id, 'MATERIAL_APPROVE', 'materials', id, 'Material approved', req);
-    res.json({ success: true, message: 'Material approved successfully' });
-  } catch (err) {
-    console.error('Approve error:', err);
-    res.status(500).json({ success: false, message: 'Failed to approve material' });
+    const { status, rejection_reason } = req.body;
+
+    if (!['approved', 'rejected'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const [result] = await db.query(
+      'UPDATE materials SET status = ?, rejection_reason = ? WHERE id = ?',
+      [status, rejection_reason || null, id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Material not found' });
+    }
+
+    await logAction(req.user.id, 'MATERIAL_APPROVAL', 'materials', id, `Material ${status}: ID ${id}`, req);
+
+    res.status(200).json({ success: true, message: `Material ${status} successfully` });
+  } catch (error) {
+    console.error('❌ Approve Material Error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating material status' });
   }
 };
 
+// REJECT MATERIAL (Admin)
 const rejectMaterial = async (req, res) => {
   try {
     const { id } = req.params;
-    const { reason } = req.body;
-    if (!reason) return res.status(400).json({ success: false, message: 'Rejection reason is required' });
-    const [result] = await pool.query("UPDATE materials SET status = 'rejected', rejection_reason = ? WHERE id = ?", [reason, id]);
-    if (result.affectedRows === 0) return res.status(404).json({ success: false, message: 'Material not found' });
-    await logAction(req.user.id, 'MATERIAL_REJECT', 'materials', id, `Rejected: ${reason}`, req);
-    res.json({ success: true, message: 'Material rejected successfully' });
-  } catch (err) {
-    console.error('Reject error:', err);
-    res.status(500).json({ success: false, message: 'Failed to reject material' });
+    const { rejection_reason } = req.body;
+
+    const [result] = await db.query(
+      'UPDATE materials SET status = ?, rejection_reason = ? WHERE id = ?',
+      ['rejected', rejection_reason || 'No reason provided', id]
+    );
+
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ success: false, message: 'Material not found' });
+    }
+
+    await logAction(req.user.id, 'MATERIAL_REJECTION', 'materials', id, `Material rejected: ID ${id}`, req);
+
+    res.status(200).json({ success: true, message: 'Material rejected successfully' });
+  } catch (error) {
+    console.error('❌ Reject Material Error:', error);
+    res.status(500).json({ success: false, message: 'Server error rejecting material' });
   }
 };
 
-// DOWNLOAD MATERIAL
+// DOWNLOAD MATERIAL (New Function with Safety Checks)
 const downloadMaterial = async (req, res) => {
   try {
     const { id } = req.params;
@@ -150,4 +212,11 @@ const downloadMaterial = async (req, res) => {
   }
 };
 
-module.exports = { uploadMaterial, getMaterials, approveMaterial, rejectMaterial, downloadMaterial };
+// EXPORT ALL FUNCTIONS
+module.exports = { 
+  uploadMaterial, 
+  getMaterials, 
+  approveMaterial, 
+  rejectMaterial, 
+  downloadMaterial 
+};
