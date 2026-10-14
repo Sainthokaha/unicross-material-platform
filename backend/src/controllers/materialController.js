@@ -60,28 +60,26 @@ const getMaterials = async (req, res) => {
     const userRole = req.user.role;
     const userId = req.user.id;
     
+    // Changed JOIN to LEFT JOIN to prevent materials from disappearing if links are broken
     let query = `
       SELECT m.*, u.full_name as uploader_name, c.name as course_name, c.code as course_code, d.name as department_name
       FROM materials m
-      JOIN users u ON m.uploader_id = u.id
-      JOIN courses c ON m.course_id = c.id
-      JOIN departments d ON m.department_id = d.id
+      LEFT JOIN users u ON m.uploader_id = u.id
+      LEFT JOIN courses c ON m.course_id = c.id
+      LEFT JOIN departments d ON m.department_id = d.id
       WHERE 1=1
     `;
     const params = [];
 
     // 1. Handle Role-Based Visibility
     if (userRole === 'student') {
-      // Students only see approved materials
       query += " AND m.status = 'approved'";
     } else if (userRole === 'lecturer') {
-      // Lecturers see ALL their own materials (pending, approved, rejected)
       query += " AND m.uploader_id = ?";
       params.push(userId);
     }
-    // Admins see all materials (no extra filter added here)
 
-    // 2. Handle Explicit Status Filter (e.g. Admin filtering by 'pending')
+    // 2. Handle Explicit Status Filter
     if (status) {
       query += ' AND m.status = ?';
       params.push(status);
