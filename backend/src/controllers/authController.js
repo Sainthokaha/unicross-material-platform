@@ -9,21 +9,55 @@ const { logAction } = require('../utils/auditLogger');
 // Password reset links are logged to the server console (Render logs).
 
 // ==================== REGISTER ====================
+
 const register = async (req, res) => {
   try {
     const { full_name, email, password, role, matric_number, staff_id, department_id } = req.body;
-    if (!full_name || !email || !password || !role) return res.status(400).json({ success: false, message: 'Please provide all required fields' });
+    
+    if (!full_name || !email || !password || !role) {
+      return res.status(400).json({ success: false, message: 'Please provide all required fields' });
+    }
 
     const [existingUsers] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
-    if (existingUsers.length > 0) return res.status(400).json({ success: false, message: 'Email already registered' });
+    if (existingUsers.length > 0) {
+      return res.status(400).json({ success: false, message: 'Email already registered' });
+    }
+
+    // SMART DEPARTMENT ALIGNMENT LOGIC
+    let finalDeptId = department_id;
+
+    if (role === 'student' && matric_number && !finalDeptId) {
+      const parts = matric_number.split('/');
+      if (parts.length >= 2) {
+        const code = parts[1].trim().toUpperCase();
+        
+        // Map matric codes to your actual Department Names in the DB
+        const deptMap = {
+          'CSC': 'Computer Science',
+          'ACC': 'Accounting',
+          'ECO': 'Economics',
+          'MTH': 'Mathematics',
+          'PHY': 'Physics'
+          // Add more codes here if needed
+        };
+
+        const deptName = deptMap[code];
+        if (deptName) {
+          const [deptResult] = await db.query('SELECT id FROM departments WHERE name = ?', [deptName]);
+          if (deptResult.length > 0) {
+            finalDeptId = deptResult[0].id;
+          }
+        }
+      }
+    }
 
     const salt = await bcrypt.genSalt(12);
     const password_hash = await bcrypt.hash(password, salt);
 
     const [result] = await db.query(
-      `INSERT INTO users (full_name, email, password_hash, role, matric_number, staff_id, department_id, is_active, email_verified)
+      `INSERT INTO users (full_name, email, password_hash, role, matric_number, staff_id, department_id, is_active, email_verified) 
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1)`,
-      [full_name, email, password_hash, role, matric_number || null, staff_id || null, department_id || null]
+      [full_name, email, password_hash, role, matric_number || null, staff_id || null, finalDeptId]
     );
 
     await logAction(result.insertId, 'USER_REGISTER', 'users', result.insertId, `New user registered: ${full_name}`, req);
