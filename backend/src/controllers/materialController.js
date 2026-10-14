@@ -53,10 +53,11 @@ const uploadMaterial = async (req, res) => {
   }
 };
 
-// 2. GET MATERIALS (Flexible: Admin can fetch 'pending', others get 'approved')
+// 2. GET MATERIALS (Admin sees all, Students/Lecturers see only approved)
 const getMaterials = async (req, res) => {
   try {
     const { status, course_id, department_id, semester, search } = req.query;
+    const userRole = req.user.role; // Check if user is admin
     
     let query = `
       SELECT m.*, u.full_name as uploader_name, c.name as course_name, c.code as course_code, d.name as department_name
@@ -68,12 +69,18 @@ const getMaterials = async (req, res) => {
     `;
     const params = [];
 
-    // If status is provided (e.g., admin requests 'pending'), use it. Otherwise, default to 'approved' for students/lecturers
+    // Filter by status
     if (status) {
+      // If a specific status is requested (e.g. ?status=pending), use it
       query += ' AND m.status = ?';
       params.push(status);
     } else {
-      query += " AND m.status = 'approved'";
+      // If no status is requested:
+      // - Students/Lecturers only see 'approved' materials
+      // - Admins see ALL materials (pending, approved, rejected)
+      if (userRole !== 'admin') {
+        query += " AND m.status = 'approved'";
+      }
     }
 
     if (course_id) {
