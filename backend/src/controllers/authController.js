@@ -14,16 +14,18 @@ const register = async (req, res) => {
   try {
     const { full_name, email, password, role, matric_number, staff_id, department_id } = req.body;
     
+    // 1. Basic Validation
     if (!full_name || !email || !password || !role) {
       return res.status(400).json({ success: false, message: 'Please provide all required fields' });
     }
 
+    // 2. Check if email already exists
     const [existingUsers] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
     if (existingUsers.length > 0) {
       return res.status(400).json({ success: false, message: 'Email already registered' });
     }
 
-    // SMART DEPARTMENT ALIGNMENT LOGIC
+    // 3. DYNAMIC SMART DEPARTMENT ALIGNMENT LOGIC
     let finalDeptId = department_id;
 
     if (role === 'student' && matric_number && !finalDeptId) {
@@ -31,37 +33,36 @@ const register = async (req, res) => {
       if (parts.length >= 2) {
         const code = parts[1].trim().toUpperCase();
         
-        // Map matric codes to your actual Department Names in the DB
-        const deptMap = {
-          'CSC': 'Computer Science',
-          'ACC': 'Accounting',
-          'ECO': 'Economics',
-          'MTH': 'Mathematics',
-          'PHY': 'Physics'
-          // Add more codes here if needed
-        };
-
-        const deptName = deptMap[code];
-        if (deptName) {
-          const [deptResult] = await db.query('SELECT id FROM departments WHERE name = ?', [deptName]);
-          if (deptResult.length > 0) {
-            finalDeptId = deptResult[0].id;
-          }
+        // Query the database directly using the extracted code
+        const [deptResult] = await db.query('SELECT id FROM departments WHERE code = ?', [code]);
+        
+        if (deptResult.length > 0) {
+          finalDeptId = deptResult[0].id;
         }
       }
     }
 
+    // 4. Hash Password
     const salt = await bcrypt.genSalt(12);
     const password_hash = await bcrypt.hash(password, salt);
 
+    // 5. Insert User into Database
     const [result] = await db.query(
       `INSERT INTO users (full_name, email, password_hash, role, matric_number, staff_id, department_id, is_active, email_verified) 
        VALUES (?, ?, ?, ?, ?, ?, ?, 1, 1)`,
       [full_name, email, password_hash, role, matric_number || null, staff_id || null, finalDeptId]
     );
 
+    // 6. Log the Action
     await logAction(result.insertId, 'USER_REGISTER', 'users', result.insertId, `New user registered: ${full_name}`, req);
-    res.status(201).json({ success: true, message: 'User registered successfully.', userId: result.insertId });
+    
+    // 7. Send Success Response
+    res.status(201).json({ 
+      success: true, 
+      message: 'User registered successfully.', 
+      userId: result.insertId 
+    });
+
   } catch (error) {
     console.error('❌ Register Error:', error);
     res.status(500).json({ success: false, message: 'Server error during registration' });
