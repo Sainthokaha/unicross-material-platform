@@ -1,10 +1,17 @@
 const db = require('../config/db');
 const path = require('path');
 const { logAction } = require('../utils/auditLogger');
-
 // UPLOAD MATERIAL
 const uploadMaterial = async (req, res) => {
   try {
+    console.log('📥 Upload Request Body:', req.body);
+    console.log('📥 Upload Request File:', req.file);
+    console.log('📥 Upload Request User:', req.user);
+
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: No user token found' });
+    }
+
     const { title, description, course_id, semester } = req.body;
     const uploader_id = req.user.id;
 
@@ -13,10 +20,16 @@ const uploadMaterial = async (req, res) => {
     }
 
     const file = req.file;
-    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'];
+    const allowedTypes = [
+      'application/pdf', 
+      'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+      'application/vnd.ms-powerpoint', 
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    ];
     
     if (!allowedTypes.includes(file.mimetype)) {
-      return res.status(400).json({ success: false, message: 'Invalid file type. Only PDF, DOC, DOCX, PPT, PPTX allowed' });
+      return res.status(400).json({ success: false, message: `Invalid file type: ${file.mimetype}. Only PDF, DOC, DOCX, PPT, PPTX allowed` });
     }
 
     const maxSize = 50 * 1024 * 1024;
@@ -47,7 +60,8 @@ const uploadMaterial = async (req, res) => {
       materialId: result.insertId 
     });
   } catch (error) {
-    console.error('❌ Upload Material Error:', error);
+    console.error('❌ Upload Material CRASH:', error.message);
+    console.error('Full Error Details:', error);
     res.status(500).json({ success: false, message: 'Server error during material upload' });
   }
 };
