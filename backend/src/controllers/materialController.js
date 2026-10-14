@@ -90,11 +90,18 @@ const rejectMaterial = async (req, res) => {
   }
 };
 
+// DOWNLOAD MATERIAL
 const downloadMaterial = async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // 1. Ensure user is authenticated
+    if (!req.user || !req.user.id) {
+      return res.status(401).json({ success: false, message: 'Unauthorized: No user token found' });
+    }
     const userId = req.user.id;
 
+    // 2. Find material and verify it is approved
     const [materials] = await db.query(
       'SELECT * FROM materials WHERE id = ? AND status = ?', 
       [id, 'approved']
@@ -105,25 +112,41 @@ const downloadMaterial = async (req, res) => {
     }
 
     const material = materials[0];
-    const fileName = material.file_path.split('/').pop();
+    
+    // 3. Safely resolve file path
+    if (!material.file_path) {
+      console.error(`❌ CRITICAL: Material ${id} has no file_path in database`);
+      return res.status(500).json({ success: false, message: 'File path is missing in database' });
+    }
+
+    const fileName = material.file_path.split('/').pop(); 
     const filePath = path.join(__dirname, '../../uploads', fileName);
 
+    // 4. Increment download count automatically
     await db.query(
       'UPDATE materials SET download_count = download_count + 1 WHERE id = ?', 
       [id]
     );
 
+    // 5. Log the download action in audit_logs
     await logAction(userId, 'MATERIAL_DOWNLOAD', 'materials', id, `Downloaded: ${material.original_name}`, req);
 
+    // 6. Send the file to the client
     res.download(filePath, material.original_name, (err) => {
       if (err) {
-        console.error('❌ File download error:', err);
-        res.status(500).json({ success: false, message: 'Error downloading file from server' });
+        console.error(`❌ File download error for path ${filePath}:`, err);
+        if (!res.headersSent) {
+          res.status(500).json({ success: false, message: 'File not found on server or download failed' });
+        }
       }
     });
+
   } catch (error) {
-    console.error('❌ Download Material Error:', error);
-    res.status(500).json({ success: false, message: 'Server error during download' });
+    console.error('❌ Download Material CRASH (ID:', req.params.id, '):', error.message);
+    console.error('Full Error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, message: 'Server error during download' });
+    }
   }
 };
 
