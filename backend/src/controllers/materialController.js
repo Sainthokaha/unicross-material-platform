@@ -62,7 +62,7 @@ const uploadMaterial = async (req, res) => {
 // 2. GET MATERIALS (STRICT ROLE-BASED VISIBILITY)
 const getMaterials = async (req, res) => {
   try {
-    const { status, course_id, semester, search } = req.query; // Removed department_id from query to prevent frontend spoofing
+    const { status, course_id, semester, search } = req.query;
     const userRole = req.user.role;
     const userId = req.user.id;
 
@@ -81,7 +81,7 @@ const getMaterials = async (req, res) => {
       // 1. Students ONLY see approved materials
       query += " AND m.status = 'approved'";
       
-      // 2. Students ONLY see their own department (Fetched securely from DB, not frontend)
+      // 2. Students ONLY see their own department (Fetched securely from DB)
       const [userDepts] = await db.query('SELECT department_id FROM users WHERE id = ?', [userId]);
       if (userDepts.length > 0 && userDepts[0].department_id) {
         query += ' AND m.department_id = ?';
