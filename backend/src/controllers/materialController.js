@@ -76,16 +76,16 @@ const getMaterials = async (req, res) => {
     `;
     const params = [];
 
-    // 🛡️ STRICT ROLE LOGIC
+    // 🛡️ STRICT ROLE LOGIC (NO EXCEPTIONS)
     if (userRole === 'student') {
       // 1. Students ONLY see approved materials
       query += " AND m.status = 'approved'";
       
       // 2. Students ONLY see their own department (Fetched securely from DB)
-      const [userDepts] = await db.query('SELECT department_id FROM users WHERE id = ?', [userId]);
-      if (userDepts.length > 0 && userDepts[0].department_id) {
+      const [userDept] = await db.query('SELECT department_id FROM users WHERE id = ?', [userId]);
+      if (userDept.length > 0 && userDept[0].department_id) {
         query += ' AND m.department_id = ?';
-        params.push(userDepts[0].department_id);
+        params.push(userDept[0].department_id);
       } else {
         // If student has no department assigned, show nothing
         query += ' AND 1=0'; 
