@@ -4,7 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const { verifyToken } = require('../middleware/auth');
+// ✅ FIX: Import verifyAdmin alongside verifyToken
+const { verifyToken, verifyAdmin } = require('../middleware/auth');
 const { uploadMaterial, getMaterials, approveMaterial, rejectMaterial, downloadMaterial } = require('../controllers/materialController');
 
 const uploadDir = path.join(__dirname, '../../uploads');
@@ -27,8 +28,11 @@ const upload = multer({
 
 router.post('/', verifyToken, upload.single('file'), uploadMaterial);
 router.get('/', verifyToken, getMaterials);
-router.patch('/:id/approve', verifyToken, approveMaterial);
-router.patch('/:id/reject', verifyToken, rejectMaterial);
+
+// ✅ FIX: Added verifyAdmin middleware to these two routes
+router.patch('/:id/approve', verifyToken, verifyAdmin, approveMaterial);
+router.patch('/:id/reject', verifyToken, verifyAdmin, rejectMaterial);
+
 router.get('/:id/download', verifyToken, downloadMaterial);
 
 module.exports = router;

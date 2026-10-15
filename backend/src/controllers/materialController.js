@@ -59,13 +59,10 @@ const uploadMaterial = async (req, res) => {
   }
 };
 
-// 2. GET MATERIALS (ROLE-BASED VISIBILITY - THE FIX)
-// Student: Own Dept + Approved ONLY
-// Lecturer: Own Uploads ONLY (All Statuses)
-// Admin: All Materials (All Statuses)
+// 2. GET MATERIALS (STRICT ROLE-BASED VISIBILITY)
 const getMaterials = async (req, res) => {
   try {
-    const { status, course_id, department_id, semester, search } = req.query;
+    const { status, course_id, semester, search } = req.query; // Removed department_id from query to prevent frontend spoofing
     const userRole = req.user.role;
     const userId = req.user.id;
 
@@ -79,57 +76,48 @@ const getMaterials = async (req, res) => {
     `;
     const params = [];
 
-    // STRICT ROLE LOGIC
+    // 🛡️ STRICT ROLE LOGIC
     if (userRole === 'student') {
-      // Students see only APPROVED materials in their own department
+      // 1. Students ONLY see approved materials
       query += " AND m.status = 'approved'";
       
-      // Optional: Filter by student's specific department if needed for extra security
-      // For now, we rely on the frontend passing department_id or just showing all approved
-      // If you want strict dept isolation, uncomment below:
-      /*
-      const [userDept] = await db.query('SELECT department_id FROM users WHERE id = ?', [userId]);
-      if(userDept.length > 0 && userDept[0].department_id) {
-         query += ' AND m.department_id = ?';
-         params.push(userDept[0].department_id);
+      // 2. Students ONLY see their own department (Fetched securely from DB, not frontend)
+      const [userDepts] = await db.query('SELECT department_id FROM users WHERE id = ?', [userId]);
+      if (userDepts.length > 0 && userDepts[0].department_id) {
+        query += ' AND m.department_id = ?';
+        params.push(userDepts[0].department_id);
+      } else {
+        // If student has no department assigned, show nothing
+        query += ' AND 1=0'; 
       }
-      */
-    } else if (userRole === 'lecturer') {
-      // Lecturers see ONLY their own uploads, regardless of status
+    } 
+    else if (userRole === 'lecturer') {
+      // Lecturers ONLY see their own uploads (All statuses)
       query += ' AND m.uploader_id = ?';
       params.push(userId);
     }
-    // Admin sees everything (no extra filter added here)
+    // Admin sees everything (no extra filter added)
 
-    // Apply explicit status filter if provided (e.g., Admin filtering by 'pending')
+    // Apply explicit status filter (Mainly for Admin)
     if (status) {
       query += ' AND m.status = ?';
       params.push(status);
     }
-
     if (course_id) {
       query += ' AND m.course_id = ?';
       params.push(course_id);
     }
-
-    if (department_id) {
-      query += ' AND m.department_id = ?';
-      params.push(department_id);
-    }
-
     if (semester) {
       query += ' AND m.semester = ?';
       params.push(semester);
     }
-
     if (search) {
-      query += ' AND (m.title LIKE ? OR m.description LIKE ?)';
+      query += ' AND (m.title LIKE ? OR m.description LIKE ? OR c.code LIKE ?)';
       const searchTerm = `%${search}%`;
-      params.push(searchTerm, searchTerm);
+      params.push(searchTerm, searchTerm, searchTerm);
     }
 
     query += ' ORDER BY m.created_at DESC';
-
     const [materials] = await db.query(query, params);
     res.status(200).json({ success: true, materials });
   } catch (error) {

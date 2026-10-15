@@ -18,7 +18,7 @@ export const useMaterialsStore = defineStore('materials', () => {
     }
   }
 
-  // ✅ CRITICAL: Accept FormData and pass it directly to axios without modifying headers
+  // CRITICAL: Accept FormData and pass it directly to axios without modifying headers
   async function uploadMaterial(formData) {
     loading.value = true
     try {
@@ -49,7 +49,8 @@ export const useMaterialsStore = defineStore('materials', () => {
   async function rejectMaterial(id, reason) {
     loading.value = true
     try {
-      await api.patch(`/materials/${id}/reject`, { reason })
+      // ✅ FIX: Changed 'reason' to 'rejection_reason' to match the backend controller's expected payload
+      await api.patch(`/materials/${id}/reject`, { rejection_reason: reason })
       await fetchMaterials()
     } catch (err) {
       console.error('Reject error:', err)
